@@ -207,8 +207,16 @@ runs:
           --module CONFIG_MT76_CONNAC_LIB \
           --module CONFIG_MT7603E \
           --module CONFIG_MT76x2_COMMON \
+          --module CONFIG_MT76x2E \
+          --module CONFIG_MT76x2U \
           --module CONFIG_MT76x0_COMMON \
+          --module CONFIG_MT76x0U \
+          --module CONFIG_MT76x0E \
           --module CONFIG_MT7615_COMMON \
+          --module CONFIG_MT7615E \
+          --module CONFIG_MT7663_USB_SDIO_COMMON \
+          --module CONFIG_MT7663U \
+          --module CONFIG_MT7663S \
           --module CONFIG_MT7915E \
           --module CONFIG_MT7921E
 
