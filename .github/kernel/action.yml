@@ -195,6 +195,38 @@ runs:
         rm -f msm-kernel/android/abi_gki_protected_exports_* || true
         df -h
 
+    - name: Merge vendor fragments
+      if: ${{ env.BUILD_TYPE == 'Monolithic Build' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        OUT=out
+
+        cd "$MSM"
+        mkdir -p "$OUT"
+
+        CONFIGS=(
+          "arch/arm64/configs/gki_defconfig"
+        )
+
+        if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+          CONFIGS+=("arch/arm64/configs/vendor/${SOC}_GKI.config")
+        fi
+
+        if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
+          CONFIGS+=("arch/arm64/configs/vendor/oplus/${SOC}_GKI.config")
+        fi
+
+        if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
+          CONFIGS+=("arch/arm64/configs/vendor/debugfs.config")
+        fi
+
+        # Merge defconfig fragments
+        ./scripts/kconfig/merge_config.sh -O "$OUT" -m "${CONFIGS[@]}"
+
+        cp "$OUT/.config" arch/arm64/configs/gki_defconfig
+        rm "$OUT/.config"
+
     - name: Add KernelSU Next
       id: add_ksun
       shell: bash
@@ -935,28 +967,7 @@ runs:
         OUT=out
         INSTALL_MOD_PATH="$COMMON/out"
         mkdir -p "$OUT"
-
-        CONFIGS=(
-            "gki_defconfig"
-        )
-
-        if [[ "$BUILD_TYPE" == "Monolithic Build" ]]; then
-          # Merge defconfig fragments
-
-          if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
-            CONFIGS+=("vendor/${SOC}_GKI.config")
-          fi
-
-          if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
-            CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
-          fi
-
-          if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
-            CONFIGS+=("vendor/debugfs.config")
-          fi
-        fi
-
-        make "${MAKE_FLAGS[@]}" O="$OUT" "${CONFIGS[@]}"
+        make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
 
         # LOCALVERSION branding
         if [ -n "${CUSTOM_LOCALVERSION:-}" ]; then
