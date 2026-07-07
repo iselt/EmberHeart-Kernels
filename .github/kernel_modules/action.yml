@@ -203,6 +203,11 @@ runs:
         ./scripts/kconfig/merge_config.sh -O "$OUT" -m "${CONFIGS[@]}"
 
         cp "$OUT/.config" arch/arm64/configs/gki_defconfig
+
+        # snapshot the merged defconfig for debugging
+        make ARCH=arm64 O="$OUT" savedefconfig
+        mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/merged_defconfig"
+
         rm "$OUT/.config"
 
     - name: Add nethunter specfic drivers already present in kernel to be built as modules
@@ -506,7 +511,11 @@ runs:
         EXT_MODULES=("${EXT_OPLUS[@]#../}" "${EXT_QCOM[@]#../}") >> "$GITHUB_ENV"
 
         cp "$OUT/Module.symvers" "$ARTIFACTS_DIR_DEBUG" || true
-        cp "$OUT/.config" "$ARTIFACTS_DIR_DEBUG" || true
+        cp "$OUT/.config" "$ARTIFACTS_DIR_DEBUG/config" || true
+
+        # snapshot the final defconfig for debugging
+        make "${MAKE_FLAGS[@]}" O="$OUT" savedefconfig
+        mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/final_defconfig"
 
     - name: Create dtb.img
       id: create_dtb
