@@ -505,6 +505,9 @@ runs:
         # To be used for preparing modules.order in create_vendor_dlkm step
         EXT_MODULES=("${EXT_OPLUS[@]#../}" "${EXT_QCOM[@]#../}") >> "$GITHUB_ENV"
 
+        cp "$OUT/Module.symvers" "$ARTIFACTS_DIR_DEBUG" || true
+        cp "$OUT/.config" "$ARTIFACTS_DIR_DEBUG" || true
+
     - name: Create dtb.img
       id: create_dtb
       if: ${{ inputs.compile_dlkm == 'true' }}

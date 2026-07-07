@@ -1013,6 +1013,7 @@ runs:
           cp "$OUT/Module.symvers" "$ARTIFACTS_DIR_DEBUG"
         fi
 
+        cp "$OUT/.config" "$ARTIFACTS_DIR_DEBUG"
         cp "$OUT/vmlinux" "$ARTIFACTS_DIR_DEBUG"
 
         echo "::endgroup::"
