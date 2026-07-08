@@ -344,28 +344,28 @@ runs:
 
         mkdir -p "$OUT"
 
-        CONFIGS=()
+        CONFIGS=("gki_defconfig")
 
-        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
-          CONFIGS+=("gki_defconfig")
+        # Merge defconfig fragments
+        if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+          CONFIGS+=("vendor/${SOC}_GKI.config")
+        fi
 
-          # Merge defconfig fragments
+        if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
+          CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
+        fi
 
-          if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
-            CONFIGS+=("vendor/${SOC}_GKI.config")
-          fi
+        if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
+          CONFIGS+=("vendor/debugfs.config")
+        fi
 
-          if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
-            CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
-          fi
-
-          if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
-            CONFIGS+=("vendor/debugfs.config")
-          fi
+        if [[ "$BUILD_TYPE" == "Monolithic Build" ]]; then
+          CONFIGS+=("kernel.config")
         fi
 
         CONFIGS+=("modules.config")
 
+        make clean
         make "${MAKE_FLAGS[@]}" O="$OUT" "${CONFIGS[@]}"
 
         # snapshot the merged defconfig for debugging
