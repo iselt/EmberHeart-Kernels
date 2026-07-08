@@ -195,42 +195,12 @@ runs:
         rm -f msm-kernel/android/abi_gki_protected_exports_* || true
         df -h
 
-    - name: Merge vendor fragments
-      if: ${{ env.BUILD_TYPE == 'Monolithic Build' }}
+    - name: Create custom defconfig fragment
       shell: bash
       run: |
         set -euo pipefail
-        OUT=out
-
-        cd "$MSM"
-        mkdir -p "$OUT"
-
-        CONFIGS=(
-          "arch/arm64/configs/gki_defconfig"
-        )
-
-        if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
-          CONFIGS+=("arch/arm64/configs/vendor/${SOC}_GKI.config")
-        fi
-
-        if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
-          CONFIGS+=("arch/arm64/configs/vendor/oplus/${SOC}_GKI.config")
-        fi
-
-        if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
-          CONFIGS+=("arch/arm64/configs/vendor/debugfs.config")
-        fi
-
-        # Merge defconfig fragments
-        ./scripts/kconfig/merge_config.sh -O "$OUT" -m "${CONFIGS[@]}"
-
-        cp "$OUT/.config" arch/arm64/configs/gki_defconfig
-
-        # snapshot the merged defconfig for debugging
-        make ARCH=arm64 O="$OUT" savedefconfig
-        mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/merged_defconfig"
-
-        rm "$OUT/.config"
+        cd "${COMMON}"
+        touch arch/arm64/configs/kernel.config
 
     - name: Add KernelSU Next
       id: add_ksun
@@ -520,7 +490,7 @@ runs:
           echo "::warning::BBG setup script failed, continuing anyway"
         fi
         cd "$COMMON"
-        ./scripts/config --file arch/arm64/configs/gki_defconfig --enable CONFIG_BBG
+        ./scripts/config --file arch/arm64/configs/kernel.config --enable CONFIG_BBG
         sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
         echo "BBG LSM added ✅"
         echo "::endgroup::"
@@ -540,7 +510,7 @@ runs:
         echo "::group::Adding KernelSU configs..."
         cd "$COMMON"
 
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_KSU \
           --disable CONFIG_KSU_KPROBES_HOOK \
           --enable CONFIG_TMPFS_XATTR \
@@ -557,7 +527,7 @@ runs:
         echo "::group::Adding SUSFS configs..."
         cd "$COMMON"
 
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_KSU_SUSFS \
           --enable CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT \
           --enable CONFIG_KSU_SUSFS_SUS_PATH \
@@ -583,7 +553,7 @@ runs:
         echo "::group::Adding Oneplus BBR"
         cd "$COMMON"
 
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_TCP_CONG_ADVANCED \
           --enable CONFIG_TCP_CONG_BBR \
           --enable CONFIG_TCP_CONG_BBR3 \
@@ -672,7 +642,7 @@ runs:
         cd "$COMMON"
 
         # Bluetooth configs
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_BT_HCIBTUSB \
           --enable CONFIG_BT_HCIBTUSB_BCM \
           --enable CONFIG_BT_HCIBTUSB_RTL \
@@ -682,12 +652,12 @@ runs:
           --enable CONFIG_BT_HCIBFUSB
 
         # Airspy & HackRF
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_USB_AIRSPY \
           --enable CONFIG_USB_HACKRF
 
         # CAN
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_CAN \
           --enable CONFIG_CAN_DEV \
           --enable CONFIG_CAN_CALC_BITTIMING \
@@ -697,31 +667,31 @@ runs:
           --enable CONFIG_CAN_XILINXCAN
 
         # Bosch C_CAN/D_CAN devices
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_CAN_C_CAN \
           --enable CONFIG_CAN_C_CAN_PLATFORM \
           --enable CONFIG_CAN_C_CAN_PCI
 
         # Bosch CC770 and Intel AN82527 devices
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_CAN_CC770 \
           --enable CONFIG_CAN_CC770_ISA \
           --enable CONFIG_CAN_CC770_PLATFORM
 
         # Bosch M_CAN devices
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_CAN_M_CAN \
           --enable CONFIG_CAN_M_CAN_PCI \
           --enable CONFIG_CAN_M_CAN_PLATFORM \
           --enable CONFIG_CAN_M_CAN_TCAN4X5X
 
         # CAN SPI interfaces
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_CAN_HI311X \
           --enable CONFIG_CAN_MCP251X
 
         # CAN USB interfaces
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_CAN_8DEV_USB \
           --enable CONFIG_CAN_EMS_USB \
           --enable CONFIG_CAN_ESD_USB2 \
@@ -730,14 +700,14 @@ runs:
           --enable CONFIG_CAN_PEAK_USB
 
         # CAN - Networking
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_NETLINK_DIAG \
           --enable CONFIG_VSOCKETS \
           --enable CONFIG_NET_SCHED \
           --enable CONFIG_NET_EMATCH_CANID
 
         # USB Serial Converter
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_USB_SERIAL \
           --enable CONFIG_USB_SERIAL_CONSOLE \
           --enable CONFIG_USB_SERIAL_GENERIC \
@@ -755,7 +725,7 @@ runs:
         echo "::group::Adding other configs..."
         cd "$COMMON"
 
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_LRU_GEN_ENABLED
 
         # Add for Droidspaces support
@@ -814,7 +784,7 @@ runs:
             ;;
         esac
 
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
                   --enable CONFIG_SYSVIPC \
                   --enable CONFIG_DEVTMPFS \
                   --enable CONFIG_PID_NS \
@@ -835,7 +805,7 @@ runs:
         echo "::group::Adding TTL support..."
         cd "$COMMON"
 
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_IP_NF_TARGET_TTL \
           --enable CONFIG_IP6_NF_TARGET_HL \
           --enable CONFIG_IP6_NF_MATCH_HL
@@ -850,7 +820,7 @@ runs:
         echo "::group::Adding IP SET support..."
         cd "$COMMON"
 
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/kernel.config \
           --enable CONFIG_IP_SET \
           --set-val CONFIG_IP_SET_MAX 65534 \
           --enable CONFIG_IP_SET_BITMAP_IP \
@@ -881,22 +851,22 @@ runs:
         cd "$COMMON"
 
         if [ "${{ inputs.lto }}" = "Thin" ]; then
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/kernel.config \
             --enable CONFIG_LTO_CLANG_THIN \
             --enable CONFIG_LTO_CLANG
         else
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/kernel.config \
             --enable CONFIG_LTO_CLANG_FULL \
             --enable CONFIG_LTO_CLANG
         fi
 
         # Optimize level config and flags
         if [ "${{ inputs.optimize_level }}" = "O3" ]; then
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/kernel.config \
             --disable CC_OPTIMIZE_FOR_PERFORMANCE \
             --enable CC_OPTIMIZE_FOR_PERFORMANCE_O3
         else
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/kernel.config \
            --enable CC_OPTIMIZE_FOR_PERFORMANCE \
            --disable CC_OPTIMIZE_FOR_PERFORMANCE_O3
         fi
@@ -972,7 +942,34 @@ runs:
         OUT=out
         INSTALL_MOD_PATH="$COMMON/out"
         mkdir -p "$OUT"
-        make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
+
+        CONFIGS=(
+            "gki_defconfig"
+        )
+
+        if [[ "$BUILD_TYPE" == "Monolithic Build" ]]; then
+          # Merge defconfig fragments
+
+          if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+            CONFIGS+=("vendor/${SOC}_GKI.config")
+          fi
+
+          if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
+            CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
+          fi
+
+          if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
+            CONFIGS+=("vendor/debugfs.config")
+          fi
+        fi
+
+        CONFIGS+=("kernel.config")
+
+        make "${MAKE_FLAGS[@]}" O="$OUT" "${CONFIGS[@]}"
+
+        # snapshot the merged defconfig for debugging
+        make ARCH=arm64 O="$OUT" savedefconfig
+        mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/merged_defconfig"
 
         # LOCALVERSION branding
         if [ -n "${CUSTOM_LOCALVERSION:-}" ]; then

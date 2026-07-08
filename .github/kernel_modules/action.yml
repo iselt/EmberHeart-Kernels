@@ -173,42 +173,12 @@ runs:
         rm -f $MSM/android/abi_gki_protected_exports_* || true
         df -h
 
-    - name: Merge vendor fragments
-      if: ${{ env.BUILD_TYPE == 'Modules Only' || env.BUILD_TYPE == 'Mixed Build' }}
+    - name: Create custom defconfig fragment
       shell: bash
       run: |
         set -euo pipefail
-        OUT=out
-
         cd "$MSM"
-        mkdir -p "$OUT"
-
-        CONFIGS=(
-          "arch/arm64/configs/gki_defconfig"
-        )
-
-        if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
-          CONFIGS+=("arch/arm64/configs/vendor/${SOC}_GKI.config")
-        fi
-
-        if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
-          CONFIGS+=("arch/arm64/configs/vendor/oplus/${SOC}_GKI.config")
-        fi
-
-        if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
-          CONFIGS+=("arch/arm64/configs/vendor/debugfs.config")
-        fi
-
-        # Merge defconfig fragments
-        ./scripts/kconfig/merge_config.sh -O "$OUT" -m "${CONFIGS[@]}"
-
-        cp "$OUT/.config" arch/arm64/configs/gki_defconfig
-
-        # snapshot the merged defconfig for debugging
-        make ARCH=arm64 O="$OUT" savedefconfig
-        mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/merged_defconfig"
-
-        rm "$OUT/.config"
+        touch arch/arm64/configs/modules.config
 
     - name: Add nethunter specfic drivers already present in kernel to be built as modules
       shell: bash
@@ -217,11 +187,11 @@ runs:
         cd "$MSM"
         
         # Realtek drivers
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/modules.config \
           --enable CONFIG_WLAN_VENDOR_REALTEK
 
         # ATH drivers
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/modules.config \
           --enable CONFIG_WLAN_VENDOR_ATH \
           --module CONFIG_ATH_COMMON \
           --module CONFIG_ATH9K \
@@ -233,7 +203,7 @@ runs:
           --module CONFIG_ATH11K
 
         # Mediatek drivers
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/modules.config \
           --enable CONFIG_WLAN_VENDOR_MEDIATEK \
           --module CONFIG_MT7601U \
           --module CONFIG_MT76_CORE \
@@ -255,7 +225,7 @@ runs:
           --module CONFIG_MT7921E
 
         # Other configs
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+        ./scripts/config --file arch/arm64/configs/modules.config \
           --enable CONFIG_MAC80211_LEDS \
           --module CONFIG_CAN_SLCAN
 
@@ -298,22 +268,22 @@ runs:
         cd "$MSM"
 
         if [ "${{ inputs.lto }}" = "Thin" ]; then
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/modules.config \
             --enable CONFIG_LTO_CLANG_THIN \
             --enable CONFIG_LTO_CLANG
         else
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/modules.config \
             --enable CONFIG_LTO_CLANG_FULL \
             --enable CONFIG_LTO_CLANG
         fi
 
         # Optimize level config and flags
         if [ "${{ inputs.optimize_level }}" = "O3" ]; then
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/modules.config \
             --disable CC_OPTIMIZE_FOR_PERFORMANCE \
             --enable CC_OPTIMIZE_FOR_PERFORMANCE_O3
         else
-          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          ./scripts/config --file arch/arm64/configs/modules.config \
            --enable CC_OPTIMIZE_FOR_PERFORMANCE \
            --disable CC_OPTIMIZE_FOR_PERFORMANCE_O3
         fi
@@ -373,7 +343,34 @@ runs:
         DTB_TYPES="$MSM_ARCH-overlays-"
 
         mkdir -p "$OUT"
-        make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
+
+        CONFIGS=()
+
+        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
+          CONFIGS+=("gki_defconfig")
+
+          # Merge defconfig fragments
+
+          if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+            CONFIGS+=("vendor/${SOC}_GKI.config")
+          fi
+
+          if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
+            CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
+          fi
+
+          if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
+            CONFIGS+=("vendor/debugfs.config")
+          fi
+        fi
+
+        CONFIGS+=("modules.config")
+
+        make "${MAKE_FLAGS[@]}" O="$OUT" "${CONFIGS[@]}"
+
+        # snapshot the merged defconfig for debugging
+        make ARCH=arm64 O="$OUT" savedefconfig
+        mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/merged_defconfig"
 
         SECONDS=0
 
