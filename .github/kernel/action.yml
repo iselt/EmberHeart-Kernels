@@ -1408,7 +1408,7 @@ runs:
         chat_id: ${{ inputs.tg_chat_id }}
         thread_id: ${{ inputs.tg_thread_id }}
         api_base_url: ${{ inputs.tg_api_base }}
-        mode: document
+        mode: media-group
         files: ${{ steps.tg_debug_zip.outputs.zip_path }}
         message: |
           <b>🐛 Debug Artifacts (common)</b>
