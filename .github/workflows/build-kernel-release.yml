@@ -120,6 +120,7 @@ on:
           - OP11
           - OP11_LOS
           - OP12
+          - OP12R
           - POCO_F6_LOS
         default: OP11
 
