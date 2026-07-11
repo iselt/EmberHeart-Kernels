@@ -203,7 +203,7 @@ runs:
           --module CONFIG_ATH11K
 
         # Mediatek drivers
-        ./scripts/config --file arch/arm64/configs/modules.config \
+        ./scripts/config --file arch/arm64/configs/modules.config -k \
           --enable CONFIG_WLAN_VENDOR_MEDIATEK \
           --module CONFIG_MT7601U \
           --module CONFIG_MT76_CORE \
