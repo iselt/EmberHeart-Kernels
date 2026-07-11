@@ -46,19 +46,23 @@ runs:
 
         case "$MODE" in
           text)
-            resp=$(curl -s -w '\n%{http_code}' -X POST "$API/sendMessage" \
+            if resp=$(curl -s -w '\n%{http_code}' -X POST "$API/sendMessage" \
               -d chat_id="$CHAT_ID" \
               -d message_thread_id="$THREAD_ID" \
               -d parse_mode="HTML" \
               -d disable_web_page_preview="true" \
-              --data-urlencode text="$MESSAGE")
-            http_code=$(echo "$resp" | tail -n1)
-            body=$(echo "$resp" | sed '$d')
-            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-              echo "::warning::[notify-telegram] sendMessage failed (HTTP $http_code): $body"
-              exit 0
+              --data-urlencode text="$MESSAGE"); then
+              http_code=$(echo "$resp" | tail -n1)
+              body=$(echo "$resp" | sed '$d')
+              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                echo "::warning::[notify-telegram] sendMessage failed (HTTP $http_code): $body"
+                exit 0
+              fi
+              echo "[notify-telegram] Text message sent."
+            else
+              curl_exit=$?
+              echo "::warning::[notify-telegram] curl failed to execute sendMessage (curl exit code $curl_exit)."
             fi
-            echo "[notify-telegram] Text message sent."
             ;;
 
           document)
@@ -74,19 +78,24 @@ runs:
                 echo "::warning::[notify-telegram] File not found: $f — skipping."
                 continue
               fi
-              resp=$(curl -s -w '\n%{http_code}' -F document=@"$f" \
+              if resp=$(curl -s -w '\n%{http_code}' -F document=@"$f" \
                    -F chat_id="$CHAT_ID" \
                    -F message_thread_id="$THREAD_ID" \
                    -F caption="$MESSAGE" \
                    -F parse_mode="HTML" \
-                   "$API/sendDocument")
-              http_code=$(echo "$resp" | tail -n1)
-              body=$(echo "$resp" | sed '$d')
-              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-                echo "::warning::[notify-telegram] sendDocument failed for $f (HTTP $http_code): $body"
-                continue
+                   "$API/sendDocument"); then
+                http_code=$(echo "$resp" | tail -n1)
+                body=$(echo "$resp" | sed '$d')
+                if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                  echo "::warning::[notify-telegram] sendDocument failed for $f (HTTP $http_code): $body"
+                  continue
+                fi
+                echo "[notify-telegram] Sent document: $(basename "$f")"
+              else
+                curl_exit=$?
+                echo "::warning::[notify-telegram] curl failed to execute sendDocument for $f (curl exit code $curl_exit) — file may have been unreadable or removed mid-run."
+                ls -la "$f" 2>&1 || echo "::warning::[notify-telegram] $f no longer exists."
               fi
-              echo "[notify-telegram] Sent document: $(basename "$f")"
             done
             ;;
 
@@ -130,18 +139,23 @@ runs:
             done
             MEDIA_JSON+="]"
 
-            resp=$(curl -s -w '\n%{http_code}' -F chat_id="$CHAT_ID" \
+            if resp=$(curl -s -w '\n%{http_code}' -F chat_id="$CHAT_ID" \
                  -F message_thread_id="$THREAD_ID" \
                  -F media="$MEDIA_JSON" \
                  "${CURL_ARGS[@]}" \
-                 "$API/sendMediaGroup")
-            http_code=$(echo "$resp" | tail -n1)
-            body=$(echo "$resp" | sed '$d')
-            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-              echo "::warning::[notify-telegram] sendMediaGroup failed (HTTP $http_code): $body"
-              exit 0
+                 "$API/sendMediaGroup"); then
+              http_code=$(echo "$resp" | tail -n1)
+              body=$(echo "$resp" | sed '$d')
+              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                echo "::warning::[notify-telegram] sendMediaGroup failed (HTTP $http_code): $body"
+                exit 0
+              fi
+              echo "[notify-telegram] Sent media group with ${#EXISTING_FILES[@]} files."
+            else
+              curl_exit=$?
+              echo "::warning::[notify-telegram] curl failed to execute sendMediaGroup (curl exit code $curl_exit) — one of the files may have been unreadable or removed mid-run."
+              for f in "${EXISTING_FILES[@]}"; do ls -la "$f" 2>&1 || echo "::warning::[notify-telegram] $f no longer exists."; done
             fi
-            echo "[notify-telegram] Sent media group with ${#EXISTING_FILES[@]} files."
             ;;
 
           *)
