@@ -127,7 +127,7 @@ runs:
             for i in "${!EXISTING_FILES[@]}"; do
               f="${EXISTING_FILES[$i]}"
               attach="file$i"
-              if [ "$i" -eq 0 ]; then
+              if [ "$i" -eq $((${#EXISTING_FILES[@]}-1)) ]; then
                 MEDIA_JSON+="{\"type\":\"document\",\"media\":\"attach://$attach\",\"caption\":${CAPTION_JSON},\"parse_mode\":\"HTML\"}"
               else
                 MEDIA_JSON+="{\"type\":\"document\",\"media\":\"attach://$attach\"}"
