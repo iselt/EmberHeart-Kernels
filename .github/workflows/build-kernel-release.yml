@@ -352,6 +352,53 @@ jobs:
           tg_api_base: ${{ steps.tg_server.outputs.api_base }}
           tg_send_debug: ${{ inputs.release_type == 'none' }}
 
+      - name: Check for failure (if applicable)
+        id: tg_fail_stage
+        if: (failure() || cancelled()) && steps.tg_check.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGE="Unknown stage"
+          REASON="Failed"
+          EMOJI="❌"
+
+          SETUP_ENV_OUTCOME="${{ steps.setup_env.outcome }}"
+          BUILD_KERNEL_OUTCOME="${{ steps.build_kernel.outcome }}"
+          BUILD_MODULES_OUTCOME="${{ steps.build_modules.outcome }}"
+
+          if [ "$SETUP_ENV_OUTCOME" == "failure" ] || [ "$SETUP_ENV_OUTCOME" == "cancelled" ]; then
+            STAGE="Environment Setup"
+            [ "$SETUP_ENV_OUTCOME" == "cancelled" ] && { REASON="Cancelled"; EMOJI="🚫"; }
+          elif [ "$BUILD_KERNEL_OUTCOME" == "failure" ] || [ "$BUILD_KERNEL_OUTCOME" == "cancelled" ]; then
+            STAGE="Kernel Build"
+            [ "$BUILD_KERNEL_OUTCOME" == "cancelled" ] && { REASON="Cancelled"; EMOJI="🚫"; }
+          elif [ "$BUILD_MODULES_OUTCOME" == "failure" ] || [ "$BUILD_MODULES_OUTCOME" == "cancelled" ]; then
+            STAGE="Kernel Modules Build"
+            [ "$BUILD_MODULES_OUTCOME" == "cancelled" ] && { REASON="Cancelled"; EMOJI="🚫"; }
+          fi
+
+          echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+          echo "emoji=$EMOJI" >> "$GITHUB_OUTPUT"
+
+      - name: Notify - Build Failed
+        if: (failure() || cancelled()) && steps.tg_check.outputs.enabled == 'true'
+        uses: ./.github/telegram
+        with:
+          bot_token: ${{ secrets.TG_BOT_TOKEN }}
+          chat_id: ${{ secrets.TG_CHAT_ID }}
+          thread_id: ${{ steps.tg_thread.outputs.thread_id }}
+          api_base_url: ${{ steps.tg_server.outputs.api_base }}
+          mode: text
+          message: |
+            <b>${{ steps.tg_fail_stage.outputs.emoji }} Build ${{ steps.tg_fail_stage.outputs.reason }}</b>
+            <b>Device:</b> <code>${{ matrix.model }}</code>
+            <b>Stage:</b> ${{ steps.tg_fail_stage.outputs.stage }}
+            <b>Branch:</b> <code>${{ github.ref_name }}</code>
+            <b>Commit:</b> <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">${{ steps.tg_thread.outputs.short_sha }}</a>
+            <b>Run:</b> <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">#${{ github.run_number }}</a> (see logs for details)
+            <b>Triggered by:</b> ${{ github.actor }}
+
       - name: Stop local Telegram Bot API server
         if: always() && steps.tg_check.outputs.enabled == 'true'
         shell: bash
