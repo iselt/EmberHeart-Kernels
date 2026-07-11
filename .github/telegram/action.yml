@@ -1,0 +1,142 @@
+name: Notify Telegram
+description: Send a text message, single document, or media group to a Telegram chat/thread
+
+inputs:
+  bot_token:
+    description: 'Telegram bot token'
+    required: true
+  chat_id:
+    description: 'Target chat ID (channel/group, negative for supergroups)'
+    required: true
+  thread_id:
+    description: 'message_thread_id of the target forum topic/thread'
+    required: true
+  mode:
+    description: 'text | document | media-group'
+    required: true
+  message:
+    description: 'HTML-formatted text (used as message body for text mode, or caption for document/media-group)'
+    required: false
+    default: ''
+  files:
+    description: 'Newline-separated list of file paths (required for document/media-group modes)'
+    required: false
+    default: ''
+  api_base_url:
+    description: 'Bot API base URL, no trailing slash (e.g. https://api.telegram.org or http://localhost:8081 for a local server)'
+    required: false
+    default: 'https://api.telegram.org'
+
+runs:
+  using: composite
+  steps:
+    - name: Send to Telegram
+      shell: bash
+      env:
+        BOT_TOKEN: ${{ inputs.bot_token }}
+        CHAT_ID: ${{ inputs.chat_id }}
+        THREAD_ID: ${{ inputs.thread_id }}
+        MODE: ${{ inputs.mode }}
+        MESSAGE: ${{ inputs.message }}
+        FILES_RAW: ${{ inputs.files }}
+        API_BASE_URL: ${{ inputs.api_base_url }}
+      run: |
+        set -euo pipefail
+        API="${API_BASE_URL%/}/bot${BOT_TOKEN}"
+
+        case "$MODE" in
+          text)
+            resp=$(curl -sf -X POST "$API/sendMessage" \
+              -d chat_id="$CHAT_ID" \
+              -d message_thread_id="$THREAD_ID" \
+              -d parse_mode="HTML" \
+              -d disable_web_page_preview="true" \
+              --data-urlencode text="$MESSAGE") || {
+                echo "::warning::[notify-telegram] sendMessage failed: $resp"
+                exit 0
+              }
+            echo "[notify-telegram] Text message sent."
+            ;;
+
+          document)
+            mapfile -t FILES_LIST < <(printf '%s\n' "$FILES_RAW" | sed '/^\s*$/d')
+
+            if [ ${#FILES_LIST[@]} -eq 0 ]; then
+              echo "::warning::[notify-telegram] No files provided for document mode, skipping."
+              exit 0
+            fi
+
+            for f in "${FILES_LIST[@]}"; do
+              if [ ! -f "$f" ]; then
+                echo "::warning::[notify-telegram] File not found: $f — skipping."
+                continue
+              fi
+              resp=$(curl -sf -F document=@"$f" \
+                   -F chat_id="$CHAT_ID" \
+                   -F message_thread_id="$THREAD_ID" \
+                   -F caption="$MESSAGE" \
+                   -F parse_mode="HTML" \
+                   "$API/sendDocument") || {
+                     echo "::warning::[notify-telegram] sendDocument failed for $f: $resp"
+                     continue
+                   }
+              echo "[notify-telegram] Sent document: $(basename "$f")"
+            done
+            ;;
+
+          media-group)
+            mapfile -t FILES_LIST < <(printf '%s\n' "$FILES_RAW" | sed '/^\s*$/d')
+            EXISTING_FILES=()
+            for f in "${FILES_LIST[@]}"; do
+              if [ -f "$f" ]; then
+                EXISTING_FILES+=("$f")
+              else
+                echo "::warning::[notify-telegram] File not found, skipping: $f"
+              fi
+            done
+
+            if [ ${#EXISTING_FILES[@]} -eq 0 ]; then
+              echo "::warning::[notify-telegram] No valid files found for media-group mode, skipping."
+              exit 0
+            fi
+
+            if [ ${#EXISTING_FILES[@]} -gt 10 ]; then
+              echo "::warning::[notify-telegram] More than 10 files given; Telegram allows max 10 per group. Truncating."
+              EXISTING_FILES=("${EXISTING_FILES[@]:0:10}")
+            fi
+
+            CAPTION_JSON=$(printf '%s' "$MESSAGE" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+
+            MEDIA_JSON="["
+            CURL_ARGS=()
+            for i in "${!EXISTING_FILES[@]}"; do
+              f="${EXISTING_FILES[$i]}"
+              attach="file$i"
+              if [ "$i" -eq 0 ]; then
+                MEDIA_JSON+="{\"type\":\"document\",\"media\":\"attach://$attach\",\"caption\":${CAPTION_JSON},\"parse_mode\":\"HTML\"}"
+              else
+                MEDIA_JSON+="{\"type\":\"document\",\"media\":\"attach://$attach\"}"
+              fi
+              if [ "$i" -lt $((${#EXISTING_FILES[@]}-1)) ]; then
+                MEDIA_JSON+=","
+              fi
+              CURL_ARGS+=(-F "$attach=@$f")
+            done
+            MEDIA_JSON+="]"
+
+            resp=$(curl -sf -F chat_id="$CHAT_ID" \
+                 -F message_thread_id="$THREAD_ID" \
+                 -F media="$MEDIA_JSON" \
+                 "${CURL_ARGS[@]}" \
+                 "$API/sendMediaGroup") || {
+                   echo "::warning::[notify-telegram] sendMediaGroup failed: $resp"
+                   exit 0
+                 }
+            echo "[notify-telegram] Sent media group with ${#EXISTING_FILES[@]} files."
+            ;;
+
+          *)
+            echo "::error::[notify-telegram] Unknown mode: $MODE"
+            exit 1
+            ;;
+        esac

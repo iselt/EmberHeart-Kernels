@@ -23,6 +23,33 @@ inputs:
     required: false
     type: string
     default: 'false'
+  tg_enabled:
+    description: 'Whether Telegram notifications are configured (from tg_check gate)'
+    required: false
+    type: string
+    default: 'false'
+  tg_bot_token:
+    required: false
+    type: string
+    default: ''
+  tg_chat_id:
+    required: false
+    type: string
+    default: ''
+  tg_thread_id:
+    required: false
+    type: string
+    default: ''
+  tg_api_base:
+    description: 'Bot API base URL (local server or cloud API)'
+    required: false
+    type: string
+    default: 'https://api.telegram.org'
+  tg_send_debug:
+    description: 'Whether to send the debug bundle (false for release/pre-release builds)'
+    required: false
+    type: string
+    default: 'true'
 
 outputs:
   vendor_boot_sha256:
@@ -829,7 +856,7 @@ runs:
         echo "Modules remaining after filtering: $(find modules -type f -name '*.ko' | wc -l)"
 
     - name: Create Kernel Modules zip
-      id: create_zip
+      id: create_modules_zip
       shell: bash
       run: |
         set -euo pipefail
@@ -839,6 +866,8 @@ runs:
         mkdir -p "$CONFIG/artifacts"
         find "$MODULES_SRC" -type f -name '*.ko' -print0 | xargs -0 zip -j "$MODULES_ZIP"
         echo "Packaged kernel modules to $MODULES_ZIP"
+
+        echo "modules_zip_path=$MODULES_ZIP" >> "$GITHUB_OUTPUT"
 
     - name: Format build time
       id: build_time
@@ -937,11 +966,58 @@ runs:
         key: LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
 
     - name: Upload Kernel Modules zip
-      if: success() && steps.create_zip.conclusion == 'success'
+      if: success() && steps.create_modules_zip.conclusion == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: kernel-modules-${{ env.MODEL }}
         path: ${{ env.CONFIG }}/artifacts/
+
+    - name: Upload modules artifacts
+      if: ${{ inputs.tg_enabled == 'true' && success() && steps.create_modules_zip.conclusion == 'success' }}
+      uses: ./.github/telegram
+      with:
+        bot_token: ${{ inputs.tg_bot_token }}
+        chat_id: ${{ inputs.tg_chat_id }}
+        thread_id: ${{ inputs.tg_thread_id }}
+        api_base_url: ${{ inputs.tg_api_base }}
+        mode: document
+        files: ${{ steps.create_modules_zip.outputs.modules_zip_path }}
+        message: |
+          <b>-- Kernel Modules Modules --</b>
+          <b>Model:</b> ${{ env.MODEL }}
+
+    - name: Create debug artifacts for Telegram uploads
+      id: tg_debug_zip
+      if: ${{ inputs.tg_enabled == 'true' && inputs.tg_send_debug == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -z "$(ls -A "$ARTIFACTS_DIR_DEBUG" 2>/dev/null)" ]; then
+          echo "::warning::No debug artifacts found for msm/modules, skipping notify."
+          echo "zip_path=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        DEBUG_ZIP="/tmp/debug-msm-${MODEL}-${GITHUB_RUN_NUMBER}.zip"
+        ( cd "$ARTIFACTS_DIR_DEBUG" && zip -r "$DEBUG_ZIP" ./* >/dev/null )
+        echo "debug_zip_path=$DEBUG_ZIP" >> "$GITHUB_OUTPUT"
+
+    - name: Upload debug artifacts
+      if: ${{ inputs.tg_enabled == 'true' && inputs.tg_send_debug == 'true' && steps.tg_debug_zip.outputs.debug_zip_path != '' }}
+      uses: ./.github/telegram
+      with:
+        bot_token: ${{ inputs.tg_bot_token }}
+        chat_id: ${{ inputs.tg_chat_id }}
+        thread_id: ${{ inputs.tg_thread_id }}
+        api_base_url: ${{ inputs.tg_api_base }}
+        mode: document
+        files: ${{ steps.tg_debug_zip.outputs.debug_zip_path }}
+        message: |
+          <b>🐛 Debug Artifacts (MSM)</b>
+          <b>Model:</b> ${{ env.MODEL }}
+          <b>Modules build time:</b> ${{ steps.build_time.outputs.duration }}
+          <b>Oplus external modules build time:</b> ${{ steps.build_time.outputs.duration_oplus_ext }}
+          <b>Qcom external modules build time:</b> ${{ steps.build_time.outputs.duration_qcom_ext }}
+          <b>External dtbo build time:</b> ${{ steps.build_time.outputs.duration_dtb_ext }}
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4

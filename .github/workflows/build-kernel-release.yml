@@ -213,6 +213,88 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Check Telegram secrets
+        id: tg_check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.TG_BOT_TOKEN }}" ] || [ -z "${{ secrets.TG_CHAT_ID }}" ] || [ -z "${{ secrets.TG_API_ID }}" ] || [ -z "${{ secrets.TG_API_HASH }}" ]; then
+            echo "::warning::Telegram secrets not configured — notifications will be skipped (expected on forks)."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine notify thread
+        id: tg_thread
+        if: steps.tg_check.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.release_type }}" != "none" ]; then
+            echo "thread_id=${{ secrets.TG_THREAD_RELEASE }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "thread_id=${{ secrets.TG_THREAD_DEV }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "short_sha=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Start local Telegram Bot API server
+        id: tg_server
+        if: steps.tg_check.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name tg-bot-api-${{ strategy.job-index }} \
+            -p 0:8081 \
+            -e TELEGRAM_API_ID="${{ secrets.TG_API_ID }}" \
+            -e TELEGRAM_API_HASH="${{ secrets.TG_API_HASH }}" \
+            -e TELEGRAM_LOCAL=true \
+            aiogram/telegram-bot-api:latest
+
+          sleep 2
+
+          if ! docker ps --filter "name=tg-bot-api-${{ strategy.job-index }}" --filter "status=running" | grep -q tg-bot-api; then
+            echo "::warning::Telegram Bot API container is not running — dumping logs and skipping notifications."
+            docker logs "tg-bot-api-${{ strategy.job-index }}" || true
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          HOST_PORT=$(docker port tg-bot-api-${{ strategy.job-index }} 8081/tcp | cut -d: -f2)
+          echo "container_name=tg-bot-api-${{ strategy.job-index }}" >> "$GITHUB_OUTPUT"
+          echo "api_base=http://localhost:${HOST_PORT}" >> "$GITHUB_OUTPUT"
+
+          for i in $(seq 1 15); do
+            if curl -sf "http://localhost:${HOST_PORT}/bot${{ secrets.TG_BOT_TOKEN }}/getMe" > /dev/null; then
+              echo "Local Bot API server is up on port ${HOST_PORT}."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::warning::Local Bot API server did not become ready in time — notifications will be skipped for this run."
+          echo "enabled=false" >> "$GITHUB_OUTPUT"
+
+      - name: Notify - Build Started
+        if: steps.tg_check.outputs.enabled == 'true' && steps.tg_server.outputs.api_base != ''
+        uses: ./.github/telegram
+        with:
+          bot_token: ${{ secrets.TG_BOT_TOKEN }}
+          chat_id: ${{ secrets.TG_CHAT_ID }}
+          thread_id: ${{ steps.tg_thread.outputs.thread_id }}
+          api_base_url: ${{ steps.tg_server.outputs.api_base }}
+          mode: text
+          message: |
+            <b>Build Started</b>
+            <b>Device:</b> <code>${{ matrix.model }}</code>
+            <b>Build Target:</b> ${{ inputs.build_target }}
+            <b>Branch:</b> <code>${{ github.ref_name }}</code>
+            <b>Commit:</b> <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">${{ steps.tg_thread.outputs.short_sha }}</a>
+            <b>Manifest:</b> ${{ inputs.manifest }}
+            <b>Optimization:</b> ${{ inputs.optimize_level }} / LTO ${{ inputs.lto }}
+            <b>Release type:</b> ${{ inputs.release_type }}
+            <b>Run:</b> <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">#${{ github.run_number }}</a>
+            <b>Triggered by:</b> ${{ github.actor }}
+
       - name: Setup Build Environment
         id: setup_env
         uses: ./.github/env_setup
@@ -243,6 +325,12 @@ jobs:
           lto: ${{ inputs.lto }}
           kernel_uname: ${{ inputs.kernel_uname }}
           compile_dlkm: ${{ inputs.compile_dlkm }}
+          tg_enabled: ${{ steps.tg_check.outputs.enabled }}
+          tg_bot_token: ${{ secrets.TG_BOT_TOKEN }}
+          tg_chat_id: ${{ secrets.TG_CHAT_ID }}
+          tg_thread_id: ${{ steps.tg_thread.outputs.thread_id }}
+          tg_api_base: ${{ steps.tg_server.outputs.api_base }}
+          tg_send_debug: ${{ inputs.release_type == 'none' }}
 
       - name: Build Kernel Modules
         id: build_modules
@@ -256,6 +344,17 @@ jobs:
           lto: ${{ inputs.lto }}
           evict_unused_ccache: ${{ inputs.evict_unused_ccache }}
           compile_dlkm: ${{ inputs.compile_dlkm }}
+          tg_enabled: ${{ steps.tg_check.outputs.enabled }}
+          tg_bot_token: ${{ secrets.TG_BOT_TOKEN }}
+          tg_chat_id: ${{ secrets.TG_CHAT_ID }}
+          tg_thread_id: ${{ steps.tg_thread.outputs.thread_id }}
+          tg_api_base: ${{ steps.tg_server.outputs.api_base }}
+          tg_send_debug: ${{ inputs.release_type == 'none' }}
+
+      - name: Stop local Telegram Bot API server
+        if: always() && steps.tg_check.outputs.enabled == 'true'
+        shell: bash
+        run: docker rm -f "${{ steps.tg_server.outputs.container_name }}" || true
 
   trigger-release:
     needs:

@@ -45,6 +45,33 @@ inputs:
     required: false
     type: string
     default: 'false'
+  tg_enabled:
+    description: 'Whether Telegram notifications are configured (from tg_check gate)'
+    required: false
+    type: string
+    default: 'false'
+  tg_bot_token:
+    required: false
+    type: string
+    default: ''
+  tg_chat_id:
+    required: false
+    type: string
+    default: ''
+  tg_thread_id:
+    required: false
+    type: string
+    default: ''
+  tg_api_base:
+    description: 'Bot API base URL (local server or cloud API)'
+    required: false
+    type: string
+    default: 'https://api.telegram.org'
+  tg_send_debug:
+    description: 'Whether to send the debug bundle (false for release/pre-release builds)'
+    required: false
+    type: string
+    default: 'true'
 
 outputs:
   kernel_version:
@@ -61,6 +88,8 @@ outputs:
     value: ${{ steps.create_boot.outputs.boot_sha256 }}
   system_dlkm_sha256:
     value: ${{ steps.create_system_dlkm.outputs.system_dlkm_sha256 }}
+  zip_name:
+    value: ${{ steps.create_zip.outputs.zip_name }}
 
 runs:
   using: composite
@@ -1178,6 +1207,25 @@ runs:
         echo "Boot image created ✅"
         echo "::endgroup::"
 
+    - name: Upload Kernel Artifacts to Telegram
+      if: ${{ inputs.tg_enabled == 'true' && success() && steps.create_boot.conclusion == 'success' }}
+      uses: ./.github/telegram
+      with:
+        bot_token: ${{ inputs.tg_bot_token }}
+        chat_id: ${{ inputs.tg_chat_id }}
+        thread_id: ${{ inputs.tg_thread_id }}
+        api_base_url: ${{ inputs.tg_api_base }}
+        mode: media-group
+        files: |
+          ${{ env.ARTIFACTS_DIR }}/${{ steps.create_zip.outputs.zip_name }}
+          ${{ env.ARTIFACTS_DIR }}/boot.img
+        message: |
+          <b>-- Kernel Artifacts --</b>
+          <b>Model:</b> ${{ env.MODEL }}
+          <b>Kernel Version:</b> <code>${{ steps.get_kernel_version.outputs.kernel_version }}</code>
+          <b>Compiler:</b> <code>${{ env.CLANG_VERSION }}</code>
+          <b>KernelSU Next:</b> ${{ steps.add_ksun.outputs.ksun_tag }}
+
     - name: Create system_dlkm Image
       if: ${{ inputs.compile_dlkm == 'true'  && env.BUILD_TYPE != 'Monolithic Build' }}
       id: create_system_dlkm
@@ -1336,6 +1384,35 @@ runs:
       with:
         name: kernel-${{ env.MODEL }}
         path: ${{ env.CONFIG }}/artifacts/
+
+    - name: Zip debug artifacts for Telegram uploads
+      id: tg_debug_zip
+      if: ${{ inputs.tg_enabled == 'true' && inputs.tg_send_debug == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -z "$(ls -A "$ARTIFACTS_DIR_DEBUG" 2>/dev/null)" ]; then
+          echo "::warning::No debug artifacts found for common kernel, skipping notify."
+          echo "zip_path=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        DEBUG_ZIP="/tmp/debug-common-${MODEL}-${GITHUB_RUN_NUMBER}.zip"
+        ( cd "$ARTIFACTS_DIR_DEBUG" && zip -r "$DEBUG_ZIP" ./* >/dev/null )
+        echo "zip_path=$DEBUG_ZIP" >> "$GITHUB_OUTPUT"
+
+    - name: Upload debug artifacts to Telegram
+      if: ${{ inputs.tg_enabled == 'true' && inputs.tg_send_debug == 'true' && steps.tg_debug_zip.outputs.zip_path != '' }}
+      uses: ./.github/telegram
+      with:
+        bot_token: ${{ inputs.tg_bot_token }}
+        chat_id: ${{ inputs.tg_chat_id }}
+        thread_id: ${{ inputs.tg_thread_id }}
+        api_base_url: ${{ inputs.tg_api_base }}
+        mode: document
+        files: ${{ steps.tg_debug_zip.outputs.zip_path }}
+        message: |
+          <b>🐛 Debug Artifacts (common)</b>
+          <b>Model:</b> ${{ env.MODEL }}
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4
