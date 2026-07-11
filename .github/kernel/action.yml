@@ -1409,7 +1409,9 @@ runs:
         thread_id: ${{ inputs.tg_thread_id }}
         api_base_url: ${{ inputs.tg_api_base }}
         mode: media-group
-        files: ${{ steps.tg_debug_zip.outputs.zip_path }}
+        files: |
+          ${{ env.ARTIFACTS_DIR_DEBUG }}/config
+          ${{ steps.tg_debug_zip.outputs.zip_path }}
         message: |
           <b>🐛 Debug Artifacts (common)</b>
           <b>Model:</b> ${{ env.MODEL }}
