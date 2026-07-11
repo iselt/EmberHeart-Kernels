@@ -254,6 +254,7 @@ runs:
         # Other configs
         ./scripts/config --file arch/arm64/configs/modules.config \
           --enable CONFIG_MAC80211_LEDS \
+          --enable CONFIG_MAC80211_RC_MINSTREL \
           --module CONFIG_CAN_SLCAN
 
     - name: Add my kernel patches to msm kernel
