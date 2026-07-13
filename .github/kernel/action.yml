@@ -872,6 +872,23 @@ runs:
         echo "IP  SET support added ✅"
         echo "::endgroup::"
 
+    - name: Enable traffic schedulers (qdisc)
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Enabling traffic schedulers (qdisc)..."
+        cd "$COMMON"
+
+        ./scripts/config --file arch/arm64/configs/kernel.config \
+          --enable CONFIG_NET_SCH_FQ \
+          --enable CONFIG_NET_SCH_FQ_CODEL \
+          --enable CONFIG_NET_SCH_CAKE \
+          --enable CONFIG_NET_SCH_PIE \
+          --enable CONFIG_NET_SCH_FQ_PIE
+
+        echo "Traffic schedulers (qdisc) enabled ✅"
+        echo "::endgroup::"
+
     - name: Add Build based configs
       shell: bash
       run: |
