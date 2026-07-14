@@ -1237,11 +1237,11 @@ runs:
           ${{ env.ARTIFACTS_DIR }}/${{ steps.create_zip.outputs.zip_name }}
           ${{ env.ARTIFACTS_DIR }}/boot.img
         message: |
-          #Kernel Artifacts
+          # Kernel Artifacts
           ```
           Model: ${{ env.MODEL }}
           Kernel Version:${{ steps.get_kernel_version.outputs.kernel_version }}
-          Compiler:{{ env.CLANG_VERSION }}</code>
+          Compiler: {{ env.CLANG_VERSION }}</code>
           KernelSU Next: ${{ steps.add_ksun.outputs.ksun_tag }}
           ```
 
@@ -1432,9 +1432,10 @@ runs:
           ${{ env.ARTIFACTS_DIR_DEBUG }}/config
           ${{ steps.tg_debug_zip.outputs.zip_path }}
         message: |
-          #🐛 Debug Artifacts (common)
+          # 🐛 Debug Artifacts (common)
           ```
           Model:${{ env.MODEL }}
+          Build time: ${{ steps.build_time.outputs.duration }}
           ```
 
     - name: Upload Debug zip

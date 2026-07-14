@@ -285,7 +285,7 @@ jobs:
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
           mode: text
           message: |
-            #Build Started
+            # Build Started
             ```
             Device: ${{ matrix.model }}
             Build Target: ${{ inputs.build_target }}
@@ -293,7 +293,7 @@ jobs:
             Manifest: ${{ inputs.manifest }}
             Optimization: ${{ inputs.optimize_level }} / LTO ${{ inputs.lto }}
             Release type: ${{ inputs.release_type }}
-            Triggered by:</b> ${{ github.actor }}
+            Triggered by: ${{ github.actor }}
             ```
 
             Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
