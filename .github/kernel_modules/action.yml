@@ -984,8 +984,10 @@ runs:
         mode: media-group
         files: ${{ steps.create_modules_zip.outputs.modules_zip_path }}
         message: |
-          <b>-- Kernel Modules Modules --</b>
-          <b>Model:</b> ${{ env.MODEL }}
+          #Kernel Modules
+          ```
+          Model: ${{ env.MODEL }}
+          ```
 
     - name: Create debug artifacts for Telegram uploads
       id: tg_debug_zip
@@ -1015,12 +1017,14 @@ runs:
           ${{ env.ARTIFACTS_DIR_DEBUG }}/config
           ${{ steps.tg_debug_zip.outputs.debug_zip_path }}
         message: |
-          <b>🐛 Debug Artifacts (MSM)</b>
-          <b>Model:</b> ${{ env.MODEL }}
-          <b>Modules build time:</b> ${{ steps.build_time.outputs.duration }}
-          <b>Oplus external modules build time:</b> ${{ steps.build_time.outputs.duration_oplus_ext }}
-          <b>Qcom external modules build time:</b> ${{ steps.build_time.outputs.duration_qcom_ext }}
-          <b>External dtbo build time:</b> ${{ steps.build_time.outputs.duration_dtb_ext }}
+          #🐛 Debug Artifacts (MSM)
+          ```
+          Model: ${{ env.MODEL }}
+          Modules build time: ${{ steps.build_time.outputs.duration }}
+          Oplus external modules build time: ${{ steps.build_time.outputs.duration_oplus_ext }}
+          Qcom external modules build time: ${{ steps.build_time.outputs.duration_qcom_ext }}
+          External dtbo build time: ${{ steps.build_time.outputs.duration_dtb_ext }}
+          ```
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4

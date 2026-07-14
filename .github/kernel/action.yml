@@ -1237,11 +1237,13 @@ runs:
           ${{ env.ARTIFACTS_DIR }}/${{ steps.create_zip.outputs.zip_name }}
           ${{ env.ARTIFACTS_DIR }}/boot.img
         message: |
-          <b>-- Kernel Artifacts --</b>
-          <b>Model:</b> ${{ env.MODEL }}
-          <b>Kernel Version:</b> <code>${{ steps.get_kernel_version.outputs.kernel_version }}</code>
-          <b>Compiler:</b> <code>${{ env.CLANG_VERSION }}</code>
-          <b>KernelSU Next:</b> ${{ steps.add_ksun.outputs.ksun_tag }}
+          #Kernel Artifacts
+          ```
+          Model: ${{ env.MODEL }}
+          Kernel Version:${{ steps.get_kernel_version.outputs.kernel_version }}
+          Compiler:{{ env.CLANG_VERSION }}</code>
+          KernelSU Next: ${{ steps.add_ksun.outputs.ksun_tag }}
+          ```
 
     - name: Create system_dlkm Image
       if: ${{ inputs.compile_dlkm == 'true'  && env.BUILD_TYPE != 'Monolithic Build' }}
@@ -1430,8 +1432,10 @@ runs:
           ${{ env.ARTIFACTS_DIR_DEBUG }}/config
           ${{ steps.tg_debug_zip.outputs.zip_path }}
         message: |
-          <b>🐛 Debug Artifacts (common)</b>
-          <b>Model:</b> ${{ env.MODEL }}
+          #🐛 Debug Artifacts (common)
+          ```
+          Model:${{ env.MODEL }}
+          ```
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4

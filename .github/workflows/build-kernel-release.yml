@@ -285,16 +285,19 @@ jobs:
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
           mode: text
           message: |
-            <b>Build Started</b>
-            <b>Device:</b> <code>${{ matrix.model }}</code>
-            <b>Build Target:</b> ${{ inputs.build_target }}
-            <b>Branch:</b> <code>${{ github.ref_name }}</code>
-            <b>Commit:</b> <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">${{ steps.tg_thread.outputs.short_sha }}</a>
-            <b>Manifest:</b> ${{ inputs.manifest }}
-            <b>Optimization:</b> ${{ inputs.optimize_level }} / LTO ${{ inputs.lto }}
-            <b>Release type:</b> ${{ inputs.release_type }}
-            <b>Run:</b> <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">#${{ github.run_number }}</a>
-            <b>Triggered by:</b> ${{ github.actor }}
+            #Build Started
+            ```
+            Device: ${{ matrix.model }}
+            Build Target: ${{ inputs.build_target }}
+            Branch: ${{ github.ref_name }}
+            Manifest: ${{ inputs.manifest }}
+            Optimization: ${{ inputs.optimize_level }} / LTO ${{ inputs.lto }}
+            Release type: ${{ inputs.release_type }}
+            Triggered by:</b> ${{ github.actor }}
+            ```
+
+            Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Setup Build Environment
         id: setup_env
@@ -391,13 +394,15 @@ jobs:
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
           mode: text
           message: |
-            <b>${{ steps.tg_fail_stage.outputs.emoji }} Build ${{ steps.tg_fail_stage.outputs.reason }}</b>
-            <b>Device:</b> <code>${{ matrix.model }}</code>
-            <b>Stage:</b> ${{ steps.tg_fail_stage.outputs.stage }}
-            <b>Branch:</b> <code>${{ github.ref_name }}</code>
-            <b>Commit:</b> <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">${{ steps.tg_thread.outputs.short_sha }}</a>
-            <b>Run:</b> <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">#${{ github.run_number }}</a> (see logs for details)
-            <b>Triggered by:</b> ${{ github.actor }}
+            #${{ steps.tg_fail_stage.outputs.emoji }} Build ${{ steps.tg_fail_stage.outputs.reason }}
+            ```
+            Device: ${{ matrix.model }}
+            Stage: ${{ steps.tg_fail_stage.outputs.stage }}
+            Branch: ${{ github.ref_name }}
+            Triggered by: ${{ github.actor }}
+            ```
+            Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Stop local Telegram Bot API server
         if: always() && steps.tg_check.outputs.enabled == 'true'

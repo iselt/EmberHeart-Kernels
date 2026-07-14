@@ -15,7 +15,7 @@ inputs:
     description: 'text | document | media-group'
     required: true
   message:
-    description: 'HTML-formatted text (used as message body for text mode, or caption for document/media-group)'
+    description: 'Markdown-formatted text (used as message body for text mode, or caption for document/media-group)'
     required: false
     default: ''
   files:
@@ -49,7 +49,7 @@ runs:
             if resp=$(curl -s -w '\n%{http_code}' -X POST "$API/sendMessage" \
               -d chat_id="$CHAT_ID" \
               -d message_thread_id="$THREAD_ID" \
-              -d parse_mode="HTML" \
+              -d parse_mode="Markdown" \
               -d disable_web_page_preview="true" \
               --data-urlencode text="$MESSAGE"); then
               http_code=$(echo "$resp" | tail -n1)
@@ -82,7 +82,7 @@ runs:
                    -F chat_id="$CHAT_ID" \
                    -F message_thread_id="$THREAD_ID" \
                    -F caption="$MESSAGE" \
-                   -F parse_mode="HTML" \
+                   -F parse_mode="Markdown" \
                    "$API/sendDocument"); then
                 http_code=$(echo "$resp" | tail -n1)
                 body=$(echo "$resp" | sed '$d')
@@ -128,7 +128,7 @@ runs:
               f="${EXISTING_FILES[$i]}"
               attach="file$i"
               if [ "$i" -eq $((${#EXISTING_FILES[@]}-1)) ]; then
-                MEDIA_JSON+="{\"type\":\"document\",\"media\":\"attach://$attach\",\"caption\":${CAPTION_JSON},\"parse_mode\":\"HTML\"}"
+                MEDIA_JSON+="{\"type\":\"document\",\"media\":\"attach://$attach\",\"caption\":${CAPTION_JSON},\"parse_mode\":\"Markdown\"}"
               else
                 MEDIA_JSON+="{\"type\":\"document\",\"media\":\"attach://$attach\"}"
               fi
