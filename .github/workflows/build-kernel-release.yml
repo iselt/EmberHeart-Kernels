@@ -37,6 +37,7 @@ on:
           - OOS16_CUSTOM
           - LOS_22_2
           - LOS_23_2
+          - CUSTOM
         default: OOS16_CUSTOM
       evict_unused_ccache:
         description: 'Do you want to use evict unused ccache?'
@@ -123,6 +124,7 @@ on:
           - OP12R
           - POCO_F6_LOS
           - POCO_X6_LOS
+          - REDMI_15
         default: OP11
 
 jobs:
