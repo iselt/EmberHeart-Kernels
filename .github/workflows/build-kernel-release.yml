@@ -122,6 +122,7 @@ on:
           - OP12
           - OP12R
           - POCO_F6_LOS
+          - POCO_X6_LOS
         default: OP11
 
 jobs:
