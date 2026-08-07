@@ -39,6 +39,12 @@ inputs:
     type: string
     default: O2  # Choices: O2 or O3
 
+outputs:
+  os:
+    value: ${{ steps.set_manifest.outputs.os }}
+  os_short:
+    value: ${{ steps.set_manifest.outputs.os_short }}
+
 runs:
   using: composite
   steps:
@@ -106,16 +112,38 @@ runs:
       run: |
         set -euo pipefail
         echo '${{ inputs.op_config_json }}' > /tmp/config.json
-        jq -r 'to_entries[] | "\(.key | ascii_upcase)=\(.value)"' /tmp/config.json >> "$GITHUB_ENV"
+        jq -r 'to_entries[] | select(.value | type == "string" or type == "number" or type == "boolean") | "\(.key | ascii_upcase)=\(.value)"' /tmp/config.json >> "$GITHUB_ENV"
         echo "Parsed config:"
         jq '.' /tmp/config.json
 
-    - name: Set Manifest
+    - name: Set Manifest & grab OS details
+      id: set_manifest
       shell: bash
       run: |
         set -euo pipefail
-        echo "MANIFEST=$MANIFEST_${{ inputs.manifest }}" >> "$GITHUB_ENV"
-        echo "MANIFEST_NAME=${{ inputs.manifest }}" >> "$GITHUB_ENV"
+        selected=$(echo "${{ inputs.manifest }}" | tr '[:upper:]' '[:lower:]')  # OOS14 -> oos14
+
+        key="manifest_${selected}"
+
+        manifest_url=$(jq -r --arg k "$key" '.[$k].url // empty' /tmp/config.json)
+        os=$(jq -r --arg k "$key" '.[$k].os // empty' /tmp/config.json)
+        os_short=$(jq -r --arg k "$key" '.[$k].os_short // empty' /tmp/config.json)
+
+        if [[ -z "${manifest_url}" ]]; then
+          echo "::error::No manifest found for key '${key}' in config JSON"
+          exit 1
+        fi
+
+        echo "MANIFEST=${manifest_url}" >> "$GITHUB_ENV"
+        # echo "MANIFEST_NAME=${{ inputs.manifest }}" >> "$GITHUB_ENV"
+        echo "OS=${os}" >> "$GITHUB_ENV"
+        echo "OS_SHORT=${os_short}" >> "$GITHUB_ENV"
+
+        echo "os=${os}" >> "$GITHUB_OUTPUT"
+        echo "os_short=${os_short}" >> "$GITHUB_OUTPUT"
+
+        echo "Selected manifest: ${manifest_url}"
+        echo "OS: ${os} (${os_short})"
 
     - name: Validate Inputs
       shell: bash
@@ -174,7 +202,7 @@ runs:
         # Derive a unique build directory name
         set -euo pipefail
         # Derive a unique build directory name
-        CONFIG="$GITHUB_WORKSPACE/$MODEL"
+        CONFIG="$GITHUB_WORKSPACE/${CODENAME}-${OS_SHORT}"
         ARTIFACTS_DIR="$CONFIG/artifacts"
         ARTIFACTS_DIR_DEBUG="$CONFIG/debug/artifacts"
         KERNEL_PLATFORM="$CONFIG/kernel_platform"

@@ -122,7 +122,6 @@ runs:
         PATCHLEVEL=$(echo $KERNEL_VERSION | cut -d'.' -f2)
         SUBLEVEL=$(echo $KERNEL_VERSION | cut -d'.' -f3)
         cd "$ARTIFACTS_DIR"
-        echo "$ANDROID_RELEASE-$KERNEL_VERSION" > "${MODEL}.txt"
         echo "ANDROID_RELEASE=$ANDROID_RELEASE" >> "$GITHUB_ENV"
         echo "KERNEL_VER=$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
         echo "KERNEL_FULL_VER=$ANDROID_RELEASE-$KERNEL_VERSION" >> "$GITHUB_ENV"
@@ -165,20 +164,20 @@ runs:
       uses: actions/cache/restore@v5
       with:
         path: ${{ env.CCACHE_DIR }}
-        key: ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
+        key: ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
         restore-keys: |
-          ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
-          ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-
+          ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+          ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-
 
     - name: Restore LTO cache
       if: ${{ inputs.lto == 'Thin'}}
       uses: actions/cache/restore@v5
       with:
         path: ${{ env.LDCACHE_DIR }}
-        key: LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        key: LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
         restore-keys: |
-          LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
-          LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-
+          LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+          LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-
 
     - name: Clone AnyKernel3 and Other Dependencies
       shell: bash
@@ -997,7 +996,9 @@ runs:
         if [[ "$BUILD_TYPE" == "Monolithic Build" ]]; then
           # Merge defconfig fragments
 
-          if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+          if [ -f "arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]; then
+            CONFIGS+=("vendor/${CODENAME}_GKI.config")
+          elif [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
             CONFIGS+=("vendor/${SOC}_GKI.config")
           fi
 
@@ -1102,7 +1103,7 @@ runs:
         echo "[DEBUG] Kernel build completed in ${duration}s"
 
         WARNINGS=$(grep -i -E 'warning:' "$COMMON/build.log" | wc -l || true)
-        echo "$WARNINGS" > "$OUT/warnings.txt"
+        echo "$WARNINGS" > "${ARTIFACTS_DIR_DEBUG}/warnings.txt"
 
         if [ -f "$IMG" ]; then
           file "$IMG" > "$OUT/Image.file" || true
@@ -1163,16 +1164,16 @@ runs:
         cd "$GITHUB_WORKSPACE/AnyKernel3"
 
         if [ "${{ inputs.use_susfs }}" = "true" ]; then
-          ZIP_NAME="AnyKernel3_${MODEL}_${{ inputs.optimize_level }}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}_SuSFS_${SUSVER}.zip"
+          ZIP_NAME="AnyKernel3_${{ env.CODENAME }}-${{ env.OS_SHORT }}_${{ inputs.optimize_level }}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}_SuSFS_${SUSVER}.zip"
         else
-          ZIP_NAME="AnyKernel3_${MODEL}_${{ inputs.optimize_level }}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}.zip"
+          ZIP_NAME="AnyKernel3_${{ env.CODENAME }}-${{ env.OS_SHORT }}_${{ inputs.optimize_level }}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}.zip"
         fi
 
         echo "Creating flashable zip: $ZIP_NAME"
         ( cd "$GITHUB_WORKSPACE/AnyKernel3" && zip -r "$ARTIFACTS_DIR/$ZIP_NAME" ./* >/dev/null )
 
         # Keep only the flashable zip and the model metadata file (assumed already created earlier)
-        find "$ARTIFACTS_DIR" -maxdepth 1 -type f ! -name "$ZIP_NAME" ! -name "${MODEL}.txt" -delete
+        find "$ARTIFACTS_DIR" -maxdepth 1 -type f ! -name "$ZIP_NAME" -delete
 
         # Output for later steps (optional)
         echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
@@ -1240,9 +1241,9 @@ runs:
         message: |
           # Kernel Artifacts
           ```
-          Model: ${{ env.MODEL }}
+          Model: ${{ env.PRODUCT }}
           Kernel Version:${{ steps.get_kernel_version.outputs.kernel_version }}
-          Compiler: {{ env.CLANG_VERSION }}</code>
+          Compiler: {{ env.CLANG_VERSION }}
           KernelSU Next: ${{ steps.add_ksun.outputs.ksun_tag }}
           ```
 
@@ -1327,7 +1328,7 @@ runs:
           echo "----"
           echo ""
           echo "> [!NOTE]"
-          echo "> Model: ${{ env.MODEL }}"
+          echo "> Model: ${{ env.PRODUCT }}"
           echo ""
           echo "- Kernel Release: ${{ env.kernel_release }}"
           echo "- Kernel Uname: ${{ env.KERNEL_UNAME }}"
@@ -1367,42 +1368,42 @@ runs:
         fi
 
         echo "[WARNING] Deleting old LTO cache..."
-        gh cache delete LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+        gh cache delete LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
         echo "[WARNING] Deleting old ccache..."
-        gh cache delete ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+        gh cache delete ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
     - name: Purge old mixed artifacts
       if: ${{ env.BUILD_TYPE == 'Mixed Build' || env.BUILD_TYPE == 'Kernel Only' }}
       shell: bash
       run: |
-        gh cache delete ${{ env.MODEL }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+        gh cache delete ${{ env.CODENAME }}-${{ env.OS_SHORT }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
     - name: Save ccache
       uses: actions/cache/save@v5
       with:
         path: ${{ env.CCACHE_DIR }}
-        key: ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
+        key: ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
 
     - name: Save LTO cache
       if: ${{ inputs.lto == 'Thin' }}
       uses: actions/cache/save@v5
       with:
         path: ${{ env.LDCACHE_DIR }}
-        key: LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        key: LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
 
     - name: Save files for Mixed builds
       if: ${{ env.BUILD_TYPE == 'Mixed Build' || env.BUILD_TYPE == 'Kernel Only' }}
       uses: actions/cache/save@v5
       with:
         path: ${{ env.KBUILD_MIXED_TREE_DIR }}
-        key: ${{ env.MODEL }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        key: ${{ env.CODENAME }}-${{ env.OS_SHORT }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
 
     - name: Upload Artifacts
       if: success() && steps.create_zip.conclusion == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: kernel-${{ env.MODEL }}
+        name: kernel-${{ env.CODENAME }}-${{ env.OS_SHORT }}
         path: ${{ env.CONFIG }}/artifacts/
 
     - name: Zip debug artifacts for Telegram uploads
@@ -1416,8 +1417,8 @@ runs:
           echo "zip_path=" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-        DEBUG_ZIP="/tmp/debug-common-${MODEL}-${GITHUB_RUN_NUMBER}.zip"
-        ( cd "$ARTIFACTS_DIR_DEBUG" && zip -r "$DEBUG_ZIP" ./* >/dev/null )
+        DEBUG_ZIP="/tmp/debug-common-${{ env.CODENAME }}-${{ env.OS_SHORT }}-${GITHUB_RUN_NUMBER}.zip"
+        ( cd "$ARTIFACTS_DIR_DEBUG" && zip -r9 "$DEBUG_ZIP" ./* >/dev/null )
         echo "zip_path=$DEBUG_ZIP" >> "$GITHUB_OUTPUT"
 
     - name: Upload debug artifacts to Telegram
@@ -1435,12 +1436,12 @@ runs:
         message: |
           # 🐛 Debug Artifacts (common)
           ```
-          Model:${{ env.MODEL }}
+          Model:${{ env.PRODUCT }}
           Build time: ${{ steps.build_time.outputs.duration }}
           ```
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4
       with:
-        name: debug-common-${{ env.MODEL }}
+        name: debug-common-${{ env.CODENAME }}-${{ env.OS_SHORT }}
         path: ${{ env.CONFIG }}/debug/artifacts/

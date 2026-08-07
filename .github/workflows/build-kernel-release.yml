@@ -1,4 +1,4 @@
-name: Build and Release OnePlus EmberHeart Kernel and Kernel Modules
+name: Build and Release EmberHeart Kernel and Kernel Modules
 
 permissions:
   contents: write
@@ -128,7 +128,7 @@ on:
         default: OP11
 
 jobs:
-  set-op-model:
+  set-model:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -140,7 +140,7 @@ jobs:
             configs/
           sparse-checkout-cone-mode: false
 
-      - name: Setup OnePlus Model
+      - name: Setup Model
         id: set-matrix
         shell: bash
         run: |
@@ -180,10 +180,14 @@ jobs:
           echo "MATRIX_EOF" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build ${{ matrix.model }} EmberHeart
-    needs: set-op-model
+    name: Build ${{ matrix.product }} EmberHeart
+    needs: set-model
     runs-on: ubuntu-latest
     outputs:
+      product: ${{ matrix.product }}
+      codename: ${{ matrix.codename }}
+      os: ${{ steps.setup_env.outputs.os }}
+      os_short: ${{ steps.setup_env.outputs.os_short }}
       kernel_version: ${{ steps.build_kernel.outputs.kernel_version }}
       ksun_version: ${{ steps.build_kernel.outputs.ksun_version }}
       ksun_tag: ${{ steps.build_kernel.outputs.ksun_tag }}
@@ -210,7 +214,7 @@ jobs:
       CCACHE_LOGFILE: "/tmp/kernel_ccache.log"
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.set-op-model.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.set-model.outputs.matrix) }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -290,7 +294,7 @@ jobs:
           message: |
             # Build Started
             ```
-            Device: ${{ matrix.model }}
+            Device: ${{ matrix.product }}
             Build Target: ${{ inputs.build_target }}
             Branch: ${{ github.ref_name }}
             Manifest: ${{ inputs.manifest }}
@@ -399,7 +403,7 @@ jobs:
           message: |
             #${{ steps.tg_fail_stage.outputs.emoji }} Build ${{ steps.tg_fail_stage.outputs.reason }}
             ```
-            Device: ${{ matrix.model }}
+            Device: ${{ matrix.product }}
             Stage: ${{ steps.tg_fail_stage.outputs.stage }}
             Branch: ${{ github.ref_name }}
             Triggered by: ${{ github.actor }}
@@ -421,7 +425,6 @@ jobs:
       REPO_OWNER: ${{ github.repository_owner }}
       REPO_NAME: ${{ github.event.repository.name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      OS_VERSION: $(grep -oi 'oos[0-9]\+' <<< "${{ inputs.manifest }}")
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -462,21 +465,18 @@ jobs:
 
       - name: Generate Release name
         run: |
-          DEVICE="OnePlus $(grep -oi "OP[0-9]\+[A-Z]*" <<< "${{ inputs.model }}" || true)"
+          DEVICE="${{ needs.build.outputs.product }}"
 
-          if [ -z "$DEVICE" ]; then
-             DEVICE="${{ inputs.model }}"
-          fi
           if [[ -n "${{ needs.build.outputs.susfs_version }}" ]]; then
-            RELEASE_NAME="$DEVICE EmberHeart Kernel With KernelSU Next ${{ needs.build.outputs.ksun_tag }}, Nethunter & SUSFS ${{ needs.build.outputs.susfs_version }}"
+            RELEASE_NAME="${DEVICE} ( ${{ needs.build.outputs.codename }} ) ${{ needs.build.outputs.os }} EmberHeart Kernel With KernelSU Next ${{ needs.build.outputs.ksun_tag }}, Nethunter & SUSFS ${{ needs.build.outputs.susfs_version }}"
           else
-            RELEASE_NAME="$DEVICE EmberHeart Kernel With KernelSU Next ${{ needs.build.outputs.ksun_tag }} & Nethunter"
+            RELEASE_NAME="${DEVICE} ( ${{ needs.build.outputs.codename }} ) ${{ needs.build.outputs.os }} EmberHeart Kernel With KernelSU Next ${{ needs.build.outputs.ksun_tag }} & Nethunter"
           fi
           echo "RELEASE_NAME=$RELEASE_NAME" >> "$GITHUB_ENV"
 
       - name: Generate and Create New Tag
         run: |
-          BASE_TAG="${{ needs.build.outputs.ksun_tag }}-r0"
+          BASE_TAG="${{ needs.build.outputs.codename }}-${{ needs.build.outputs.os_short }}-${{ needs.build.outputs.ksun_tag }}-r0"
           LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
           if [ -z "$LATEST_TAG" ]; then
             LATEST_TAG="$BASE_TAG"
@@ -517,23 +517,16 @@ jobs:
           Official Managers:
           -> https://github.com/KernelSU-Next/KernelSU-Next  
 
-          Non-Official Managers:
-          -> https://github.com/WildKernels/Wild_KSU
-
-          ### Built Devices
+          ### Built Device
 
           | Model | Kernel Version |
           |-------|----------------|
           EOF
 
-          # Generate table rows
-          find downloaded-artifacts -name "*.txt" -type f | sort | while read -r file; do
-            if [ -n "$file" ]; then
-              model=$(basename "$file" .txt)
-              version=$(cat "$file")
-              printf "| %-12s | %-16s |\n" "$model" "$version" >> release_notes.md
-            fi
-          done
+
+          model=${{ needs.build.outputs.product }}
+          version=${{ needs.build.outputs.kernel_version }}
+          printf "| %-12s | %-16s |\n" "$model" "$version" >> release_notes.md
 
           # Add features and finalize
           cat << EOF >> release_notes.md
@@ -560,14 +553,23 @@ jobs:
           - [+] Mem kernel driver by @Poko-Apps [r/w to physical memory]
           - [+] IP Set Support
 
+          > [!NOTE]
+          > Some features might vary depending on the model due to compatibility issues
+
           > [!IMPORTANT]
+          > Codename: ${{ needs.build.outputs.codename }}
+          > Supported OS version: ${{ needs.build.outputs.os }}
           > Kernel Image hash : ${{ needs.build.outputs.kernel_sha256 }}
           > boot.img hash : ${{ needs.build.outputs.boot_sha256 }}
+          EOF
+
+          if [[ "${{ inputs.compile_dlkm }}" == "true" ]]; then
+            cat << EOF >> release_notes.md
           > system_dlkm.img hash : ${{ needs.build.outputs.system_dlkm_sha256 }}
           > vendor_boot.img hash : ${{ needs.build.outputs.vendor_boot_sha256 }}
           > vendor_dlkm.img hash : ${{ needs.build.outputs.vendor_dlkm_sha256 }}
-
           EOF
+          fi
 
           # Output for debugging
           echo "--- Final Release Notes ---"
@@ -578,7 +580,7 @@ jobs:
         run: |
           gh release create "${{ env.NEW_TAG }}" \
             --repo "${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}" \
-            --title "*Test-build*-${{ env.RELEASE_NAME }}-${{ env.OS_VERSION }}*Test Build*" \
+            --title "*Test-build*-${{ env.RELEASE_NAME }}-*Test Build*" \
             --notes-file release_notes.md \
             --prerelease
 
@@ -587,7 +589,7 @@ jobs:
         run: |
           gh release create "${{ env.NEW_TAG }}" \
             --repo "${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}" \
-            --title "${{ env.RELEASE_NAME }}-${{ env.OS_VERSION }}" \
+            --title "${{ env.RELEASE_NAME }}" \
             --notes-file release_notes.md
 
       - name: Upload Release Assets Dynamically

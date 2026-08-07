@@ -147,27 +147,27 @@ runs:
       uses: actions/cache/restore@v5
       with:
         path: ${{ env.CCACHE_DIR }}
-        key: ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
+        key: ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
         restore-keys: |
-          ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
-          ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-
+          ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+          ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-
 
     - name: Restore LTO cache
       if: ${{ inputs.lto == 'Thin'}}
       uses: actions/cache/restore@v5
       with:
         path: ${{ env.LDCACHE_DIR }}
-        key: LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        key: LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
         restore-keys: |
-          LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
-          LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-
+          LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+          LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-
 
     - name: Restore files for Mixed builds
       if: ${{ env.BUILD_TYPE == 'Modules Only' }}
       uses: actions/cache/restore@v5
       with:
         path: ${{ env.KBUILD_MIXED_TREE_DIR }}
-        key: ${{ env.MODEL }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.MIXED_KERNEL_VERSION }}
+        key: ${{ env.CODENAME }}-${{ env.OS_SHORT }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.MIXED_KERNEL_VERSION }}
 
     - name: Check for Mixed Tree artifacts
       if: ${{ env.BUILD_TYPE == 'Modules Only' || env.BUILD_TYPE == 'Mixed Build' }}
@@ -375,7 +375,9 @@ runs:
         CONFIGS=("gki_defconfig")
 
         # Merge defconfig fragments
-        if [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+        if [ -f "arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]; then
+          CONFIGS+=("vendor/${CODENAME}_GKI.config")
+        elif [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
           CONFIGS+=("vendor/${SOC}_GKI.config")
         fi
 
@@ -837,8 +839,11 @@ runs:
 
         echo "Copying all modules to $OUT/modules"
         cd "$OUT"
-        mkdir -p modules
-        find lib/modules/"$UNAME" -type f -name '*.ko' -exec cp {} modules/ \;
+        mkdir -p modules modules_debug
+        find lib/modules/"$UNAME" -type f -name '*.ko' \
+        -exec cp {} modules/ \; \
+        -exec cp {} modules_debug/ \;
+
         echo "Total modules copied: $(find modules -type f -name '*.ko' | wc -l)"
 
         echo "Removing unnecessary modules..."
@@ -863,10 +868,19 @@ runs:
         set -euo pipefail
         OUT="$MSM/out"
         MODULES_SRC="$OUT/modules"
-        MODULES_ZIP="$CONFIG/artifacts/kernel_modules_${{ env.MODEL }}.zip"
+        MODULES_SRC_DEBUG="${OUT}/modules_debug"
+        MODULES_ZIP="$CONFIG/artifacts/kernel_modules_${{ env.CODENAME }}.zip"
+        MODULES_ZIP_DEBUG="${ARTIFACTS_DIR_DEBUG}/kernel_modules_${{ env.CODENAME }}_debug.zip"
         mkdir -p "$CONFIG/artifacts"
         find "$MODULES_SRC" -type f -name '*.ko' -print0 | xargs -0 zip -j "$MODULES_ZIP"
-        echo "Packaged kernel modules to $MODULES_ZIP"
+        echo "Packaged trimmed kernel modules to $MODULES_ZIP"
+
+        mkdir -p "${ARTIFACTS_DIR_DEBUG}"
+        find "${MODULES_SRC_DEBUG}" -type f -name '*.ko' -print0 | xargs -0 zip -j "${MODULES_ZIP_DEBUG}"
+        echo "Packaged full kernel modules to ${MODULES_ZIP_DEBUG}"
+
+        full_modules_count=$(find "${MODULES_SRC_DEBUG}" -type f -name '*.ko' | wc -l)
+        echo "full_modules_count=${full_modules_count}" >> "$GITHUB_OUTPUT"
 
         echo "modules_zip_path=$MODULES_ZIP" >> "$GITHUB_OUTPUT"
 
@@ -914,13 +928,14 @@ runs:
           echo "----"
           echo ""
           echo "> [!NOTE]"
-          echo "> Model: ${{ env.MODEL }}"
+          echo "> Model: ${{ env.PRODUCT }}"
           echo ""
           echo "> [!IMPORTANT]"
           echo "> - Vendor boot SHA256: ${{ steps.create_vendor_boot.outputs.vendor_boot_sha256 }}"
           echo "> - Vendor dlkm SHA256: ${{ steps.create_vendor_dlkm.outputs.vendor_dlkm_sha256 }}"
           echo ""
           echo "> [!NOTE]"
+          echo "> - Total modules built: ${{ steps.create_modules_zip.outputs.full_modules_count }}"
           echo "> - Modules build time: ${{ steps.build_time.outputs.duration }}"
           echo "> - Oplus external modules build time: ${{ steps.build_time.outputs.duration_oplus_ext }}"
           echo "> - Qcom external modules build time: ${{ steps.build_time.outputs.duration_qcom_ext }}"
@@ -948,29 +963,29 @@ runs:
         fi
 
         echo "[WARNING] Deleting old LTO cache"
-        gh cache delete LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+        gh cache delete LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
         echo "[WARNING] Deleting old ccache"
-        gh cache delete ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+        gh cache delete ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
     - name: Save ccache
       uses: actions/cache/save@v5
       with:
         path: ${{ env.CCACHE_DIR }}
-        key: ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
+        key: ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
 
     - name: Save LTO cache
       if: ${{ inputs.lto == 'Thin'}}
       uses: actions/cache/save@v5
       with:
         path: ${{ env.LDCACHE_DIR }}
-        key: LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        key: LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
 
     - name: Upload Kernel Modules zip
       if: success() && steps.create_modules_zip.conclusion == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: kernel-modules-${{ env.MODEL }}
+        name: kernel-modules-${{ env.CODENAME }}-${{ env.OS_SHORT }}
         path: ${{ env.CONFIG }}/artifacts/
 
     - name: Upload modules artifacts
@@ -984,9 +999,11 @@ runs:
         mode: media-group
         files: ${{ steps.create_modules_zip.outputs.modules_zip_path }}
         message: |
-          #Kernel Modules
+          # Kernel Modules
+
           ```
-          Model: ${{ env.MODEL }}
+          Model: ${{ env.PRODUCT }}
+          Total modules built: ${{ steps.create_modules_zip.outputs.full_modules_count }}
           ```
 
     - name: Create debug artifacts for Telegram uploads
@@ -1000,8 +1017,8 @@ runs:
           echo "zip_path=" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-        DEBUG_ZIP="/tmp/debug-msm-${MODEL}-${GITHUB_RUN_NUMBER}.zip"
-        ( cd "$ARTIFACTS_DIR_DEBUG" && zip -r "$DEBUG_ZIP" ./* >/dev/null )
+        DEBUG_ZIP="/tmp/debug-msm-${{ env.CODENAME }}-${{ env.OS_SHORT }}-${GITHUB_RUN_NUMBER}.zip"
+        ( cd "$ARTIFACTS_DIR_DEBUG" && zip -r9 "$DEBUG_ZIP" ./* >/dev/null )
         echo "debug_zip_path=$DEBUG_ZIP" >> "$GITHUB_OUTPUT"
 
     - name: Upload debug artifacts
@@ -1017,9 +1034,11 @@ runs:
           ${{ env.ARTIFACTS_DIR_DEBUG }}/config
           ${{ steps.tg_debug_zip.outputs.debug_zip_path }}
         message: |
-          #🐛 Debug Artifacts (MSM)
+          # 🐛 Debug Artifacts (MSM)
+
           ```
-          Model: ${{ env.MODEL }}
+          Model: ${{ env.PRODUCT }}
+          Total modules built: ${{ steps.create_modules_zip.outputs.full_modules_count }}
           Modules build time: ${{ steps.build_time.outputs.duration }}
           Oplus external modules build time: ${{ steps.build_time.outputs.duration_oplus_ext }}
           Qcom external modules build time: ${{ steps.build_time.outputs.duration_qcom_ext }}
@@ -1029,5 +1048,5 @@ runs:
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4
       with:
-        name: debug-msm-${{ env.MODEL }}
+        name: debug-msm-${{ env.CODENAME }}-${{ env.OS_SHORT }}
         path: ${{ env.CONFIG }}/debug/artifacts/
