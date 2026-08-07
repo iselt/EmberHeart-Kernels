@@ -185,14 +185,6 @@ runs:
           echo "$(ls -A ${KBUILD_MIXED_TREE_DIR})"
         fi
 
-    - name: Clone kernel patches for msm kernel
-      if: ${{ env.BUILD_TYPE == 'Modules Only' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "Cloning kernel patches for msm kernel..."
-        git clone --depth=1 https://github.com/nullptr-t-oss/kernel_patches.git my_patches
-
     - name: Clean Up ABI Protected Exports
       shell: bash
       run: |
@@ -263,12 +255,23 @@ runs:
       run: |
         set -euo pipefail
         echo "Applying kernel patches to msm kernel from my repo..."
-        cd "$MSM"
+        cd "${MSM}"
 
-        for patch_file in $KERNEL_PATCHES/kernel_patches/op11/msm/*.patch; do
-            echo "Applying patch: $patch_file"
-            patch -p1 < "$patch_file"
-        done
+        if [ -d "${KERNEL_PATCHES}/kernel_patches/${CODENAME}-${OS_SHORT}/msm" ]; then
+          # We don't need to handle this actually but just in case if someone left an empty dir
+          shopt -s nullglob
+
+          for patch in "${KERNEL_PATCHES}/kernel_patches/${CODENAME}-${OS_SHORT}/msm"/*.patch; do
+            if patch -p1 -s -f --dry-run < "$patch" >/dev/null 2>&1; then
+              echo "Applying patch: ${patch}"
+              patch -p1 --forward < "${patch}"
+            else
+              echo "Skipping patch (conflicts or already applied): ${patch}"
+            fi
+          done
+
+          shopt -u nullglob
+        fi
 
     - name: Add memkernel module
       shell: bash
@@ -322,7 +325,40 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        cd "$MSM"
+
+        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
+          export KERNEL_DIR=msm-kernel
+        else
+          export KERNEL_DIR=common
+        fi
+
+        export "ROOT_DIR=${KERNEL_PLATFORM}"
+        cd "${ROOT_DIR}"
+
+        # Inherit build config to add device specific changes. ROOT_DIR, KERNEL_DIR are exported for
+        # dual tree sources. KERNEL_PATCHES dir can we used for prebuilts (like boot ramdisk,etc)
+        # Key features implemented as of now :
+        # - PRE_DEFCONFIG_CMDS : commands to be run before running make on the defconfigs
+        #                        Example use case : Disabling some configs which might not be required
+        #                                           for a specific device (CAN feature on OnePlus 12)
+        #                        How to use : export a function in the BUILD_CONFIG, set PRE_DEFCONFIG_CMDS
+        #                                     to that function name
+        # - POST_DEFCONFIG_CMDS : commands to be run after running make on the defconfigs
+        #                        Example use case : <idk>
+        #                        How to use : export a function in the BUILD_CONFIG, set POST_DEFCONFIG_CMDS
+        #                                     to that function name
+        # - MKBOOTIMG_ARGS : Arguments for creating vendor boot image, if left empty build assumes generic v4 args
+        # - EXT_MODULES : List of Out-of-tree vendor modules to be compiled
+        # - MAKE_FLAGS : flags to be passed to make for compiling the kernel
+        # - MAKE_FLAGS_EXTRA : Extra make flags if required for compatibility reasons
+        # - CONFIGS : Array containg defconfigs (and fragments) to be used for building kernel, if not set default configuration 
+        #             takes over which works best on GKI sources (especially Xiaomi & OnePlus)
+
+        if [ -f "${BUILD_CONFIG}" ]; then
+          set -a
+            . ${ROOT_DIR}/${BUILD_CONFIG}
+          set +a
+        fi
 
         if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
           export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
@@ -330,33 +366,41 @@ runs:
           export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
         fi
 
-        if [ "${{ inputs.lto }}" = "Thin" ]; then 
+        if [ "${{ inputs.lto }}" = "Thin" ]; then
+        (
+          cd "{KERNEL_DIR}"
           echo '#!/bin/bash' > ld-wrapper
           echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc --all)' >> ld-wrapper
           chmod +x ld-wrapper
           LD="$(pwd)/ld-wrapper"
+        )
         else
           LD="ld.lld"
         fi
 
-        if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
+        if [ -f "$KERNEL_PLATFORM/build/build-tools/path/linux-x86/dtc" ]; then
           DTC="$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc"
-        else
+        elif [ -f "$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin/dtc" ]; then
           DTC="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin/dtc"
+        else
+          DTC="dtc"
         fi
 
-        MAKE_FLAGS+=(
-          LLVM=1
-          LLVM_IAS=1
-          ARCH=arm64
-          CROSS_COMPILE="aarch64-linux-gnu-"
-          LD="${LD}"
-          DTC="${DTC}"
-          DTC_FLAGS="-@"
-          HOSTCC="ccache clang"
-          HOSTCXX="ccache clang++"
-          CC="ccache clang"
-        )
+        # Allow build.config to override MAKE_FLAGS
+        if [ ! -v MAKE_FLAGS ]; then
+          MAKE_FLAGS+=(
+            LLVM=1
+            LLVM_IAS=1
+            ARCH=arm64
+            CROSS_COMPILE="aarch64-linux-gnu-"
+            LD="${LD}"
+            DTC="${DTC}"
+            DTC_FLAGS="-@"
+            HOSTCC="ccache clang"
+            HOSTCXX="ccache clang++"
+            CC="ccache clang"
+          )
+        fi
 
         if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
           MAKE_FLAGS+=(
@@ -365,79 +409,87 @@ runs:
         fi
 
         OUT=out
-        INSTALL_MOD_PATH="$MSM/out"
-        INSTALL_DTBS_PATH="$MSM/$OUT/dtbs_staging"
+        INSTALL_MOD_PATH="${ROOT_DIR}/${KERNEL_DIR}/$OUT"
+        INSTALL_DTBS_PATH="${ROOT_DIR}/${KERNEL_DIR}/$OUT/dtbs_staging"
         export MSM_ARCH="$SOC"
         DTB_TYPES="$MSM_ARCH-overlays-"
 
         mkdir -p "$OUT"
 
-        CONFIGS=("gki_defconfig")
+        # Allow build.config to override primary defconfig
+        if [ ! -v CONFIGS ]; then
+          CONFIGS=("gki_defconfig")
 
-        # Merge defconfig fragments
-        if [ -f "arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]; then
-          CONFIGS+=("vendor/${CODENAME}_GKI.config")
-        elif [ -f "arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
-          CONFIGS+=("vendor/${SOC}_GKI.config")
-        fi
+          # Merge defconfig fragments
+          if [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]; then
+            CONFIGS+=("vendor/${CODENAME}_GKI.config")
+          elif [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+            CONFIGS+=("vendor/${SOC}_GKI.config")
+          fi
 
-        if [ -f "arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
-          CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
-        fi
+          if [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
+            CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
+          fi
 
-        if [ -f "arch/arm64/configs/vendor/debugfs.config" ]; then
-          CONFIGS+=("vendor/debugfs.config")
-        fi
+          if [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/debugfs.config" ]; then
+            CONFIGS+=("vendor/debugfs.config")
+          fi
 
-        if [[ "$BUILD_TYPE" == "Monolithic Build" ]]; then
-          CONFIGS+=("kernel.config")
+          if [[ "$BUILD_TYPE" == "Monolithic Build" ]]; then
+            CONFIGS+=("kernel.config")
+          fi
         fi
 
         CONFIGS+=("modules.config")
+        declare -a MAKE_FLAGS_EXTRA=()
 
-        make clean
-        make "${MAKE_FLAGS[@]}" O="$OUT" "${CONFIGS[@]}"
+        (
+          cd "${KERNEL_DIR}"
 
-        # snapshot the merged defconfig for debugging
-        make ARCH=arm64 O="$OUT" savedefconfig
-        mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/merged_defconfig"
+          if [ -n "${PRE_DEFCONFIG_CMDS:-}" ]; then
+            eval "${PRE_DEFCONFIG_CMDS}"
+          fi
 
-        SECONDS=0
+          make clean
+          make "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" "${CONFIGS[@]}"
 
-        echo "Building kernel modules and dtbs..."
-        make "${MAKE_FLAGS[@]}" O=$OUT olddefconfig
+          if [ -n "${POST_DEFCONFIG_CMDS:-}" ]; then
+            eval "${POST_DEFCONFIG_CMDS}"
+          fi
 
-        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" modules dtbs
+          # snapshot the merged defconfig for debugging
+          make ARCH=arm64 O="$OUT" savedefconfig
+          mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/merged_defconfig"
 
-        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
-        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH" DTB_TYPES="$DTB_TYPES" dtbs_install
+          SECONDS=0
+
+          echo "Building kernel modules and dtbs..."
+          make "${MAKE_FLAGS[@]}" O=$OUT olddefconfig
+
+          make -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" modules dtbs
+
+          make -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
+          make -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH" DTB_TYPES="$DTB_TYPES" dtbs_install
+        )
 
         echo "duration=$SECONDS" >> "$GITHUB_ENV"
-
-        cd "$KERNEL_PLATFORM"
 
         # Exports for external kernel modules
         export BOARD_PLATFORM=kalama
         export TARGET_BOARD_PLATFORM=kalama
-        export ROOT_DIR=$KERNEL_PLATFORM
 
         # LOS sources expect out to be inside kernel_platform so we set out_dir as . 
         # because our actual out dir is inside common directory
         if [[ "$BUILD_TYPE" == "Monolithic Build" ]]; then
-          export OUT_DIR=$MSM
+          export OUT_DIR=${MSM}
         fi
 
-        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
-          export KERNEL_DIR=msm-kernel
-        else
-          export KERNEL_DIR=common
-        fi
         export MODNAME=audio_dlkm
         export OPLUS_ARCH_EXTENDS=y
         export KERNEL_BUILD=0
 
         MAKE_FLAGS+=(
-          KERNEL_SRC="$ROOT_DIR/$KERNEL_DIR"
+          KERNEL_SRC="${ROOT_DIR}/${KERNEL_DIR}"
         )
 
         if [ -f "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus" ]; then
@@ -454,8 +506,8 @@ runs:
 
           # OPLUS ext modules
           for MODULE in "${EXT_OPLUS[@]}"; do
-              make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
-              make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+              make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
+              make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
           done
 
           echo "duration_oplus_ext=$SECONDS" >> "$GITHUB_ENV"
@@ -464,9 +516,10 @@ runs:
           echo "duration_oplus_ext=0" >> "$GITHUB_ENV"
         fi
 
-        # QCOM ext modules
-        EXT_QCOM+=(
-            ../vendor/oss/tsunami-v3
+        # External modules (only qcom is added)
+        # Allow build.config to override EXT_MODULES list
+        if [ ! -v EXT_MODULES ]; then
+          EXT_MODULES+=(
             ../vendor/qcom/opensource/mmrm-driver
             ../vendor/qcom/opensource/mm-drivers/hw_fence
             ../vendor/qcom/opensource/mm-drivers/sync_fence
@@ -494,7 +547,8 @@ runs:
             ../vendor/st/opensource/driver
             ../vendor/st/opensource/eSE-driver
             ../vendor/qcom/opensource/wlan/qcacld-3.0/.${QCACLD_DEV_NAME}
-        )
+          )
+        fi
 
         if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
           export KBUILD_EXTRA_SYMBOLS=""
@@ -503,14 +557,14 @@ runs:
         echo "Compiling vendor modules (qcom)"
         SECONDS=0
 
-        for MODULE in "${EXT_QCOM[@]}"; do
+        for MODULE in "${EXT_MODULES[@]}"; do
             if [ ! -d "$MODULE" ]; then
               echo "[WARNING] The following module path does not exist : $MODULE"
               continue
             fi
 
-            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
-            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
             
             if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
               export KBUILD_EXTRA_SYMBOLS=$(find "$KERNEL_PLATFORM/vendor" -name "Module.symvers" | tr '\n' ' ')
@@ -529,22 +583,25 @@ runs:
             echo "$PROJECT does not have expected build configuration files, skipping..."
             continue
           fi
-          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
+          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
         done
 
         echo "duration_dtb_ext=$SECONDS" >> "$GITHUB_ENV"
 
         # To be used for preparing modules.order in create_vendor_dlkm step
-        EXT_MODULES=("${EXT_OPLUS[@]#../}" "${EXT_QCOM[@]#../}") >> "$GITHUB_ENV"
+        EXT_MODULES=("${EXT_OPLUS[@]#../}" "${EXT_MODULES[@]#../}") >> "$GITHUB_ENV"
 
-        cd "$MSM"
+        # Build is done now set OUT to absolute path for performing file operations in that dir
+        OUT="${ROOT_DIR}/${KERNEL_DIR}/out"
+
         cp "$OUT/Module.symvers" "$ARTIFACTS_DIR_DEBUG" || true
         cp "$OUT/.config" "$ARTIFACTS_DIR_DEBUG/config" || true
         cp "$OUT/include/config/auto.conf" "$ARTIFACTS_DIR_DEBUG/auto.conf" || true
 
         # snapshot the final defconfig for debugging
-        make "${MAKE_FLAGS[@]}" O="$OUT" savedefconfig
+        ( cd ${KERNEL_DIR} && make "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" savedefconfig )
         mv "$OUT/defconfig" "$ARTIFACTS_DIR_DEBUG/final_defconfig"
+        find "${OUT}" -type f -name '*.ko' -printf '%f\n' > ${ARTIFACTS_DIR_DEBUG}/device_modules.txt
 
     - name: Create dtb.img
       id: create_dtb
@@ -552,7 +609,7 @@ runs:
       shell: bash
       run: |
         OUT="$MSM/out"
-        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/$MODEL"
+        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/${CODENAME}-${OS_SHORT}"
         if curl -fsSL "$PREBUILTS/vendor_boot/dtb" -o "$OUT/dtb.img"; then
           echo "Using dtb from prebuilts."
         else
@@ -568,7 +625,7 @@ runs:
       id: create_system_dlkm
       shell: bash
       run: |
-        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/$MODEL"
+        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/${CODENAME}-${OS_SHORT}"
         OUT="$COMMON/out"
         UNAME=$(ls "$OUT/lib/modules/")
         DLKM_STAGING_DIR="$OUT/system_dlkm_staging"
@@ -626,8 +683,19 @@ runs:
       if: ${{ inputs.compile_dlkm == 'true' }}
       shell: bash
       run: |
-        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/$MODEL"
-        MKBOOTIMG="$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py"
+        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/${CODENAME}-${OS_SHORT}"
+        if [ -f "$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py" ]; then
+          MKBOOTIMG="$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py"
+        else
+          MKBOOTIMG="mkbootimg"
+        fi
+
+        if [ -f "${BUILD_CONFIG}" ]; then
+          set -a
+            . ${ROOT_DIR}/${BUILD_CONFIG}
+          set +a
+        fi
+
         OUT="$MSM/out"
         UNAME=$(ls "$OUT/lib/modules/")
         MODULES_STAGING_ROOT="$OUT/lib/modules/$UNAME"
@@ -698,20 +766,24 @@ runs:
         VENDOR_CMDLINE=$(curl -sL "$PREBUILTS/vendor_boot/cmdline.txt")
 
         # add fstab and create cpio compressed archive
-        MKBOOTIMG_ARGS=(
-          "--header_version" "4"
-          "--pagesize" "4096"
-          "--vendor_cmdline" "$VENDOR_CMDLINE"
-          "--dtb" "$OUT/dtb.img"
-          "--vendor_bootconfig" "$OUT/vendor-bootconfig.img"
-          "--vendor_boot" "$OUT/vendor_boot.img"
-          "--vendor_ramdisk" "$OUT/ramdisk.cpio"
-        )
 
-        echo "Creating boot image"
+        # Allow build.config files to override generic v4 no ramdisk mkbootimg flags
+        if [ ! -v MKBOOTIMG_ARGS ]; then
+          MKBOOTIMG_ARGS=(
+            "--header_version" "4"
+            "--pagesize" "4096"
+            "--vendor_cmdline" "$VENDOR_CMDLINE"
+            "--dtb" "$OUT/dtb.img"
+            "--vendor_bootconfig" "$OUT/vendor-bootconfig.img"
+            "--vendor_boot" "$OUT/vendor_boot.img"
+            "--vendor_ramdisk" "$OUT/ramdisk.cpio"
+          )
+        fi
+
+        echo "Creating vendor boot image"
         "$MKBOOTIMG" "${MKBOOTIMG_ARGS[@]}"
 
-        echo "Signing boot image"
+        echo "Signing vendor boot image"
 
         avbtool add_hash_footer \
           --partition_name boot \

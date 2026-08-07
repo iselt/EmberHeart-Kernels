@@ -85,7 +85,7 @@ runs:
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
           git curl ca-certificates build-essential clang lld flex bison \
           libelf-dev libssl-dev libncurses-dev zlib1g-dev liblz4-tool \
-          libxml2-utils rsync unzip dwarves file python3
+          libxml2-utils rsync unzip dwarves file python3 mkbootimg device-tree-compiler
         sudo apt-get clean
         echo "::endgroup::"
 
@@ -234,6 +234,7 @@ runs:
         echo "KBUILD_MIXED_TREE_DIR=$KBUILD_MIXED_TREE_DIR" >> "$GITHUB_ENV"
         echo "WILD_KERNEL_PATCHES=$WILD_KERNEL_PATCHES" >> "$GITHUB_ENV"
         echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
+        echo "BUILD_CONFIG=${KERNEL_PATCHES}/build_config/build.config.${CODENAME}.${OS_SHORT}" >> "$GITHUB_ENV"
 
         # Install repo tool if missing
         REPO="/usr/local/bin/repo"
@@ -384,7 +385,6 @@ runs:
         set -euo pipefail
         echo "CLANG=${{ inputs.clang_version }}" >> "$GITHUB_ENV"
 
-
     - name: Download Clang (toolchain for build)
       uses: nullptr-t-oss/kernel_toolchains/clang_setup@main
       if: env.CLANG != 'manifest'
@@ -421,3 +421,15 @@ runs:
 
         echo "Clang detected ✅"
         echo "::endgroup::"
+
+    - name: Clone AnyKernel3 and Other Dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Cloning AnyKernel3 and other dependencies..."
+        ANYKERNEL_BRANCH="gki-2.0"
+
+        echo "Using AnyKernel3 branch: $ANYKERNEL_BRANCH"
+        git clone --depth=1 https://github.com/nullptr-t-oss/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
+        git clone --depth=1 https://github.com/TheWildJames/kernel_patches.git
+        git clone --depth=1 https://github.com/nullptr-t-oss/kernel_patches.git my_patches
