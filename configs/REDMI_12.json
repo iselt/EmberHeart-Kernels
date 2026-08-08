@@ -9,9 +9,11 @@
   "qcacld_dev_name": "",
   "clang": "manifest",
   "manifest_custom": {
-  "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/redmi_12.xml",
-    "os": "HyperOS 2/3",
-    "os_short": "hos"
+    "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/redmi_12.xml",
+    "os": "PixelOS",
+    "os_short": "pos",
+    "boot_partition_size": "100663296",
+    "vendor_boot_partition_size": "100663296"
   },
   "android_version": "android12",
   "kernel_version": "5.10",

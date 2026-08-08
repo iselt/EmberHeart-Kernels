@@ -9,12 +9,12 @@
   "qcacld_dev_name": "kiwi_v2",
   "clang": "aosp-clang-r547379",
   "manifest_los_23_2": {
-  "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/oneplus_11_los_23.2.xml",
+    "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/oneplus_11_los_23.2.xml",
     "os": "LineageOS 23.2",
     "os_short": "los23.2"
   },
   "manifest_los_22_2": {
-  "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/oneplus_11_los_22.2.xml",
+    "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/oneplus_11_los_22.2.xml",
     "os": "LineageOS 22.2",
     "os_short": "los22.2"
   },

@@ -19,7 +19,7 @@
     "os_short": "oos15"
   },
   "manifest_oos16": {
-  "url": "oneplus_12_b.xml",
+    "url": "oneplus_12_b.xml",
     "os": "OxygenOS 16",
     "os_short": "oos16"
   },
