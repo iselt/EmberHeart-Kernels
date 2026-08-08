@@ -997,7 +997,7 @@ runs:
 
         if [ -f "${BUILD_CONFIG}" ]; then
           set -a
-            . ${ROOT_DIR}/${BUILD_CONFIG}
+            . ${BUILD_CONFIG}
           set +a
         fi
 
@@ -1279,7 +1279,7 @@ runs:
 
         if [ -f "${BUILD_CONFIG}" ]; then
           set -a
-            . ${ROOT_DIR}/${BUILD_CONFIG}
+            . ${BUILD_CONFIG}
           set +a
         fi
 
