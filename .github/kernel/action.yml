@@ -988,6 +988,15 @@ runs:
         #                        Example use case : <idk>
         #                        How to use : export a function in the BUILD_CONFIG, set POST_DEFCONFIG_CMDS
         #                                     to that function name
+        # - PRE_MKBOOTIMG_CMDS : commands to be executed before running mkbootimg to create boot image
+        #                        Example use case : Overriding mkbootimg args
+        #                        How to use : export a function in the BUILD_CONFIG, set PRE_MKBOOTIMG_CMDS
+        #                                     to that function name
+        # - POST_MKBOOTIMG_CMDS : commands to be executed after running mkbootimg to create boot image
+        #                        Example use case : sign boot images with custom keys (must set AVB_SIGN_BOOT_IMG=0 )
+        #                        How to use : export a function in the BUILD_CONFIG, set POST_MKBOOTIMG_CMDS
+        #                                     to that function name
+        # - AVB_SIGN_BOOT_IMG : If set to 1, sign boot image (default) else skip
         # - MKBOOTIMG_ARGS : Arguments for creating boot image, if left empty build assumes a v4 header
         #                    boot image that has no ramdisk
         # - MAKE_FLAGS : flags to be passed to make for compiling the kernel
@@ -1289,6 +1298,10 @@ runs:
           export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
         fi
 
+        if [ -n "${PRE_MKBOOTIMG_CMDS:-}" ]; then
+          eval "${PRE_MKBOOTIMG_CMDS}"
+        fi
+
         # Allow build.config files to override generic v4 no ramdisk mkbootimg flags
         if [ ! -v MKBOOTIMG_ARGS ]; then
           MKBOOTIMG_ARGS=(
@@ -1304,14 +1317,21 @@ runs:
         echo "Creating boot image"
         "$MKBOOTIMG" "${MKBOOTIMG_ARGS[@]}"
 
+        if [ -n "${POST_MKBOOTIMG_CMDS:-}" ]; then
+          eval "${POST_MKBOOTIMG_CMDS}"
+        fi
+
         echo "Signing boot image"
 
-        avbtool add_hash_footer \
-          --partition_name boot \
-          --partition_size "$BOOT_PARTITION_SIZE" \
-          --image "$OUT/boot.img" \
-          --algorithm "SHA256_RSA4096" \
-          --key "$KERNEL_PLATFORM/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem"
+        # Allow build.config to override boot image signing 
+        if [ "${AVB_SIGN_BOOT_IMG:-1}" == "1" ]; then
+          avbtool add_hash_footer \
+            --partition_name boot \
+            --partition_size "$BOOT_PARTITION_SIZE" \
+            --image "$OUT/boot.img" \
+            --algorithm "SHA256_RSA4096" \
+            --key "$KERNEL_PLATFORM/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem"
+        fi
 
         cp "$OUT/boot.img" "$ARTIFACTS_DIR"
         BOOT_SHA256=$(sha256sum "$OUT/boot.img" | cut -d' ' -f1)
