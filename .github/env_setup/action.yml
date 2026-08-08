@@ -135,7 +135,6 @@ runs:
         fi
 
         echo "MANIFEST=${manifest_url}" >> "$GITHUB_ENV"
-        # echo "MANIFEST_NAME=${{ inputs.manifest }}" >> "$GITHUB_ENV"
         echo "OS=${os}" >> "$GITHUB_ENV"
         echo "OS_SHORT=${os_short}" >> "$GITHUB_ENV"
 
@@ -144,6 +143,24 @@ runs:
 
         echo "Selected manifest: ${manifest_url}"
         echo "OS: ${os} (${os_short})"
+
+        # Manifest-level overrides
+        # Any extra scalar field in the manifest object (besides url/os/os_short)
+        # is treated as an override for a top-level config key.
+        overrides=$(jq -r --arg k "$key" \
+          '.[$k] | to_entries[]
+           | select(.key != "url" and .key != "os" and .key != "os_short")
+           | select(.value | type == "string" or type == "number" or type == "boolean")
+           | "\(.key | ascii_upcase)=\(.value)"' \
+          /tmp/config.json)
+
+        if [[ -n "${overrides}" ]]; then
+          echo "Applying manifest-level overrides:"
+          echo "${overrides}"
+          echo "${overrides}" >> "$GITHUB_ENV"
+        else
+          echo "No manifest-level overrides for '${key}'"
+        fi
 
     - name: Validate Inputs
       shell: bash
