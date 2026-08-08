@@ -125,6 +125,7 @@ on:
           - POCO_F6_LOS
           - POCO_X6_LOS
           - REDMI_15
+          - REDMI_12
         default: OP11
 
 jobs:
