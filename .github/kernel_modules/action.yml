@@ -347,7 +347,7 @@ runs:
         #                        Example use case : <idk>
         #                        How to use : export a function in the BUILD_CONFIG, set POST_DEFCONFIG_CMDS
         #                                     to that function name
-        # - MKBOOTIMG_ARGS : Arguments for creating vendor boot image, if left empty build assumes generic v4 args
+        # - VENDOR_MKBOOTIMG_ARGS : Arguments for creating vendor boot image, if left empty build assumes generic v4 args
         # - EXT_MODULES : List of Out-of-tree vendor modules to be compiled
         # - MAKE_FLAGS : flags to be passed to make for compiling the kernel
         # - MAKE_FLAGS_EXTRA : Extra make flags if required for compatibility reasons
@@ -768,8 +768,8 @@ runs:
         # add fstab and create cpio compressed archive
 
         # Allow build.config files to override generic v4 no ramdisk mkbootimg flags
-        if [ ! -v MKBOOTIMG_ARGS ]; then
-          MKBOOTIMG_ARGS=(
+        if [ ! -v VENDOR_MKBOOTIMG_ARGS ]; then
+          VENDOR_MKBOOTIMG_ARGS=(
             "--header_version" "4"
             "--pagesize" "4096"
             "--vendor_cmdline" "$VENDOR_CMDLINE"
@@ -781,7 +781,7 @@ runs:
         fi
 
         echo "Creating vendor boot image"
-        "$MKBOOTIMG" "${MKBOOTIMG_ARGS[@]}"
+        "$MKBOOTIMG" "${VENDOR_MKBOOTIMG_ARGS[@]}"
 
         echo "Signing vendor boot image"
 
