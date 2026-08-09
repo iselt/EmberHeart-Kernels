@@ -251,7 +251,7 @@ runs:
         echo "KBUILD_MIXED_TREE_DIR=$KBUILD_MIXED_TREE_DIR" >> "$GITHUB_ENV"
         echo "WILD_KERNEL_PATCHES=$WILD_KERNEL_PATCHES" >> "$GITHUB_ENV"
         echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
-        echo "BUILD_CONFIG=${KERNEL_PATCHES}/build_config/build.config.${CODENAME}.${OS_SHORT}" >> "$GITHUB_ENV"
+        echo "BUILD_CONFIG=${KERNEL_PATCHES}/device/${CODENAME}-${OS_SHORT}/build_config/build.config.${CODENAME}.${OS_SHORT}" >> "$GITHUB_ENV"
 
         # Install repo tool if missing
         REPO="/usr/local/bin/repo"

@@ -82,17 +82,17 @@ runs:
         CONFIG_FILES=("build.config.common" "build.config.constants")
         BRANCH_LINE=""
         for f in "${CONFIG_FILES[@]}"; do
-          if [ -f "$f" ]; then
+          if [[ -f "$f" ]]; then
             l=$(grep '^[[:space:]]*BRANCH=' "$f" || true)
-            if [ -n "$l" ]; then BRANCH_LINE="$l"; break; fi
+            if [[ -n "$l" ]]; then BRANCH_LINE="$l"; break; fi
           fi
         done
-        if [ -z "$BRANCH_LINE" ]; then
+        if [[ -z "$BRANCH_LINE" ]]; then
           echo "Error: No BRANCH= found"; exit 1
         fi
         BRANCH_VALUE="${BRANCH_LINE#*=}"
         ANDROID_RELEASE="${BRANCH_VALUE%-*}"
-        if [ -z "$ANDROID_RELEASE" ]; then
+        if [[ -z "$ANDROID_RELEASE" ]]; then
           echo "Could not parse android version from BRANCH=$BRANCH_VALUE"
           exit 1
         fi
@@ -110,17 +110,17 @@ runs:
         CONFIG_FILES=("build.config.common" "build.config.constants")
         BRANCH_LINE=""
         for f in "${CONFIG_FILES[@]}"; do
-          if [ -f "$f" ]; then
+          if [[ -f "$f" ]]; then
             l=$(grep '^[[:space:]]*BRANCH=' "$f" || true)
-            if [ -n "$l" ]; then BRANCH_LINE="$l"; break; fi
+            if [[ -n "$l" ]]; then BRANCH_LINE="$l"; break; fi
           fi
         done
-        if [ -z "$BRANCH_LINE" ]; then
+        if [[ -z "$BRANCH_LINE" ]]; then
           echo "Error: No BRANCH= found"; exit 1
         fi
         BRANCH_VALUE="${BRANCH_LINE#*=}"
         ANDROID_RELEASE_COMMON="${BRANCH_VALUE%-*}"
-        if [ -z "$ANDROID_RELEASE" ]; then
+        if [[ -z "$ANDROID_RELEASE" ]]; then
           echo "Could not parse android version from BRANCH=$BRANCH_VALUE"
           exit 1
         fi
@@ -175,7 +175,7 @@ runs:
       run: |
         set -euo pipefail
 
-        if [ -z "$(ls -A ${KBUILD_MIXED_TREE_DIR})" ]; then
+        if [[ -z "$(ls -A ${KBUILD_MIXED_TREE_DIR})" ]]; then
           echo "[ERROR] Mixed Tree artifacts not found!"
           echo "[ERROR] Make sure mixed artifact for the latest kernel version of Common kernel is available in GitHub caches!"
           echo "[ERROR] Stopping build"
@@ -257,7 +257,7 @@ runs:
         echo "Applying kernel patches to msm kernel from my repo..."
         cd "${MSM}"
 
-        if [ -d "${KERNEL_PATCHES}/kernel_patches/${CODENAME}-${OS_SHORT}/msm" ]; then
+        if [[ -d "${KERNEL_PATCHES}/kernel_patches/${CODENAME}-${OS_SHORT}/msm" ]]; then
           # We don't need to handle this actually but just in case if someone left an empty dir
           shopt -s nullglob
 
@@ -298,7 +298,7 @@ runs:
         echo "::group::Applying build based configs..."
         cd "$MSM"
 
-        if [ "${{ inputs.lto }}" = "Thin" ]; then
+        if [[ "${{ inputs.lto }}" = "Thin" ]]; then
           ./scripts/config --file arch/arm64/configs/modules.config \
             --enable CONFIG_LTO_CLANG_THIN \
             --enable CONFIG_LTO_CLANG
@@ -309,7 +309,7 @@ runs:
         fi
 
         # Optimize level config and flags
-        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
+        if [[ "${{ inputs.optimize_level }}" = "O3" ]]; then
           ./scripts/config --file arch/arm64/configs/modules.config \
             --disable CC_OPTIMIZE_FOR_PERFORMANCE \
             --enable CC_OPTIMIZE_FOR_PERFORMANCE_O3
@@ -347,56 +347,96 @@ runs:
         #                        Example use case : <idk>
         #                        How to use : export a function in the BUILD_CONFIG, set POST_DEFCONFIG_CMDS
         #                                     to that function name
-        # - PRE_VENDOR_MKBOOTIMG_CMDS : commands to be executed before running mkbootimg to create vendor_boot image
-        #                               Example use case : Overriding mkbootimg args
-        #                               How to use : export a function in the BUILD_CONFIG, set PRE_VENDOR_MKBOOTIMG_CMDS
-        #                                            to that function name
-        # - POST_VENDOR_MKBOOTIMG_CMDS : commands to be executed after running mkbootimg to create vendor_boot image
-        #                                Example use case : sign vendor_boot images with custom keys (must set AVB_SIGN_VENDOR_BOOT_IMG=0 )
-        #                                How to use : export a function in the BUILD_CONFIG, set POST_VENDOR_MKBOOTIMG_CMDS
-        #                                             to that function name
-        # - AVB_SIGN_VENDOR_BOOT_IMG : If set to 1, sign vendor_boot image (default) else skip
-        # - VENDOR_MKBOOTIMG_ARGS : Arguments for creating vendor boot image, if left empty build assumes generic v4 args
         # - EXT_MODULES : List of Out-of-tree vendor modules to be compiled
         # - MAKE_FLAGS : flags to be passed to make for compiling the kernel
         # - MAKE_FLAGS_EXTRA : Extra make flags if required for compatibility reasons
         # - CONFIGS : Array containg defconfigs (and fragments) to be used for building kernel, if not set default configuration 
         #             takes over which works best on GKI sources (especially Xiaomi & OnePlus)
-
-        if [ -f "${BUILD_CONFIG}" ]; then
+        #                                             to that function name
+        #   SYSTEM_DLKM_STAGING_DIR holds the root path of the dlkm partition
+        # - SYSTEM_DLKM_EXTRA_CMDS : Extra commands to be executed for device specific needs
+        #                            How to use : export a function in the BUILD_CONFIG, set SYSTEM_DLKM_EXTRA_CMDS
+        #                                             to that function name
+        # - SYSTEM_DLKM_EXTRA_FILES : When defined a custom defined function can be evaluated to decide which file(s)
+        #                             goes into the dlkm partition. BUILD_CONFIG can use SYSTEM_DLKM_STAGING_DIR
+        #                             as root directory of the system_dlkm partition
+        #                             Example use case : copy device specific files from ${PREBUILTS} dir to dlkm partition 
+        #                             How to use : export a function in the BUILD_CONFIG, set SYSTEM_DLKM_EXTRA_FILES
+        #                                          to that function name
+        # - SYSTEM_DLKM_PROPS_FILE : Can store a path to custom props file which is not present in ${PREBUILTS} dir
+        #                            Example use case : Use a props file already defined somewhere else (e.g KERNEL_DIR)
+        #                            How to use : define SYSTEM_DLKM_PROPS_FILE with absolute path of the props file
+        #                            Note :  If system_dlkm.prop is present in the ${PREBUILTS} directory then it will get the highest priority
+        # - LZ4_RAMDISK : if set to 1, cpio compressed ramdisk to be used for creating vendor_boot will be compressed using lz4 algo
+        #                 To use gzip compression set this variable to any value other than 1
+        #                 This variable defaults to 1
+        #                 Note : You can find out what compression is being used by the ramdisk by unpacking the vendor_boot image using magiskboot
+        # - PRE_VENDOR_BOOT_MKBOOTIMG_CMDS : commands to be executed before running mkbootimg to create vendor_boot image
+        #                        Example use case : Overriding mkbootimg args
+        #                        How to use : export a function in the BUILD_CONFIG, set PRE_VENDOR_BOOT_MKBOOTIMG_CMDS
+        #                                     to that function name
+        # - POST_VENDOR_BOOT_MKBOOTIMG_CMDS : commands to be executed after running mkbootimg to create vendor_boot image
+        #                        Example use case : sign vendor_boot images with custom keys (must set AVB_SIGN_VENDOR_BOOT_IMG=0 )
+        #                        How to use : export a function in the BUILD_CONFIG, set POST_VENDOR_BOOT_MKBOOTIMG_CMDS
+        #                                     to that function name
+        # - VENDOR_BOOT_EXTRA_CMDS : Extra commands to be executed for device specific needs
+        #                            How to use : export a function in the BUILD_CONFIG, set VENDOR_BOOT_EXTRA_CMDS
+        #                                             to that function name
+        # - VENDOR_BOOT_MKBOOTIMG_ARGS : Arguments for creating vendor boot image, if left empty build assumes generic v4 args
+        # - AVB_SIGN_VENDOR_BOOT_CMDS : commands to be executed to sign the vendor_boot image
+        #                        vendor_boot.img is placed inside ${OUT} dir
+        #                        How to use: define a function to sign the vendor_boot image
+        #                                    then set AVB_SIGN_VENDOR_BOOT_CMDS to that function name
+        # - AVB_SIGN_VENDOR_BOOT_IMG : If set to 1, sign vendor_boot image (default) else skip
+        # - AVB_SIGN_VENDOR_BOOT_ALGO : Defines vendor_boot image signing algorithm (defaults to sha256_rsa4096)
+        # - AVB_SIGN_VENDOR_BOOT_KEY : Stores absolute path to the custom vendor_boot signing key (defaults to gki test keys)
+        # - VENDOR_DLKM_EXTRA_CMDS : Extra commands to be executed for device specific needs
+        #                            How to use : export a function in the BUILD_CONFIG, set VENDOR_DLKM_EXTRA_CMDS
+        #                                             to that function name
+        # - VENDOR_DLKM_EXTRA_FILES : When defined a custom defined function can be evaluated to decide which file(s)
+        #                             goes into the dlkm partition. BUILD_CONFIG can use VENDOR_DLKM_STAGING_DIR
+        #                             as root directory of the vendor_dlkm partition
+        #                             Example use case : copy device specific files from ${PREBUILTS} dir to dlkm partition 
+        #                             How to use : export a function in the BUILD_CONFIG, set VENDOR_DLKM_EXTRA_FILES
+        #                                          to that function name
+        # - VENDOR_DLKM_PROPS_FILE : Can store a path to custom props file which is not present in ${PREBUILTS} dir
+        #                            Example use case : Use a props file already defined somewhere else (e.g KERNEL_DIR)
+        #                            How to use : define VENDOR_DLKM_PROPS_FILE with absolute path of the props file
+        #                            Note :  If vendor_dlkm.prop is present in the ${PREBUILTS} directory then it will get the highest priority
+        if [[ -f "${BUILD_CONFIG}" ]]; then
           set -a
             . ${BUILD_CONFIG}
           set +a
         fi
 
-        if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
+        if [[ -d "$KERNEL_PLATFORM/build/build-tools/path" ]]; then
           export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
         else
           export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
         fi
 
-        if [ "${{ inputs.lto }}" = "Thin" ]; then
+        if [[ "${{ inputs.lto }}" = "Thin" ]]; then
         (
-          cd "{KERNEL_DIR}"
+          cd "${KERNEL_DIR}"
           echo '#!/bin/bash' > ld-wrapper
           echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc --all)' >> ld-wrapper
           chmod +x ld-wrapper
-          LD="$(pwd)/ld-wrapper"
         )
+          LD="${ROOT_DIR}/${KERNEL_DIR}/ld-wrapper"
         else
           LD="ld.lld"
         fi
 
-        if [ -f "$KERNEL_PLATFORM/build/build-tools/path/linux-x86/dtc" ]; then
+        if [[ -f "$KERNEL_PLATFORM/build/build-tools/path/linux-x86/dtc" ]]; then
           DTC="$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc"
-        elif [ -f "$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin/dtc" ]; then
+        elif [[ -f "$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin/dtc" ]]; then
           DTC="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin/dtc"
         else
           DTC="dtc"
         fi
 
         # Allow build.config to override MAKE_FLAGS
-        if [ ! -v MAKE_FLAGS ]; then
+        if [[ ! -v MAKE_FLAGS ]]; then
           MAKE_FLAGS+=(
             LLVM=1
             LLVM_IAS=1
@@ -426,21 +466,21 @@ runs:
         mkdir -p "$OUT"
 
         # Allow build.config to override primary defconfig
-        if [ ! -v CONFIGS ]; then
+        if [[ ! -v CONFIGS ]]; then
           CONFIGS=("gki_defconfig")
 
           # Merge defconfig fragments
-          if [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]; then
+          if [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]]; then
             CONFIGS+=("vendor/${CODENAME}_GKI.config")
-          elif [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${SOC}_GKI.config" ]; then
+          elif [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${SOC}_GKI.config" ]]; then
             CONFIGS+=("vendor/${SOC}_GKI.config")
           fi
 
-          if [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]; then
+          if [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]]; then
             CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
           fi
 
-          if [ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/debugfs.config" ]; then
+          if [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/debugfs.config" ]]; then
             CONFIGS+=("vendor/debugfs.config")
           fi
 
@@ -455,14 +495,14 @@ runs:
         (
           cd "${KERNEL_DIR}"
 
-          if [ -n "${PRE_DEFCONFIG_CMDS:-}" ]; then
+          if [[ -n "${PRE_DEFCONFIG_CMDS:-}" ]]; then
             eval "${PRE_DEFCONFIG_CMDS}"
           fi
 
           make clean
           make "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" "${CONFIGS[@]}"
 
-          if [ -n "${POST_DEFCONFIG_CMDS:-}" ]; then
+          if [[ -n "${POST_DEFCONFIG_CMDS:-}" ]]; then
             eval "${POST_DEFCONFIG_CMDS}"
           fi
 
@@ -501,7 +541,7 @@ runs:
           KERNEL_SRC="${ROOT_DIR}/${KERNEL_DIR}"
         )
 
-        if [ -f "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus" ]; then
+        if [[ -f "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus" ]]; then
           # OPLUS ext modules list
           EXT_OPLUS=($(cat "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus"))
 
@@ -527,7 +567,7 @@ runs:
 
         # External modules (only qcom is added)
         # Allow build.config to override EXT_MODULES list
-        if [ ! -v EXT_MODULES ]; then
+        if [[ ! -v EXT_MODULES ]]; then
           EXT_MODULES+=(
             ../vendor/qcom/opensource/mmrm-driver
             ../vendor/qcom/opensource/mm-drivers/hw_fence
@@ -567,7 +607,7 @@ runs:
         SECONDS=0
 
         for MODULE in "${EXT_MODULES[@]}"; do
-            if [ ! -d "$MODULE" ]; then
+            if [[ ! -d "$MODULE" ]]; then
               echo "[WARNING] The following module path does not exist : $MODULE"
               continue
             fi
@@ -588,7 +628,7 @@ runs:
         SECONDS=0
 
         for PROJECT in $(cd "$CONFIG" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
-          if [ ! -e "../$PROJECT/Makefile" ]; then
+          if [[ ! -e "../$PROJECT/Makefile" ]]; then
             echo "$PROJECT does not have expected build configuration files, skipping..."
             continue
           fi
@@ -634,293 +674,466 @@ runs:
       id: create_system_dlkm
       shell: bash
       run: |
-        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/${CODENAME}-${OS_SHORT}"
-        OUT="$COMMON/out"
-        UNAME=$(ls "$OUT/lib/modules/")
-        DLKM_STAGING_DIR="$OUT/system_dlkm_staging"
-        DLKM_STAGING_ROOT="$DLKM_STAGING_DIR/lib/modules/$UNAME"
+        PREBUILTS="${KERNEL_PATCHES}/device/${CODENAME}-${OS_SHORT}/system_dlkm"
+        OUT="${COMMON}/out"
+        UNAME=$(ls "${OUT}/lib/modules/")
+        SYSTEM_DLKM_STAGING_DIR="${OUT}/system_dlkm_staging"
+        SYSTEM_DLKM_STAGING_ROOT="${SYSTEM_DLKM_STAGING_DIR}/lib/modules/${UNAME}"
 
-        if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
-          export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
+        if [[ -d "${KERNEL_PLATFORM}/build/build-tools/path" ]]; then
+          export PATH="${KERNEL_PLATFORM}/build/build-tools/path/linux-x86:$PATH"
         else
-          export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
+          export PATH="${KERNEL_PLATFORM}/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
         fi
 
-        # Don't create DLKM_STAGING_DIR and copy the OUT/lib folder cause it has many unnecessary files
-        # Instead create lib and copy modules folder from OUT/lib/modules to DLKM_STAGING_DIR/lib/
-        mkdir -p "$DLKM_STAGING_DIR/lib"
+        if [[ -f "${BUILD_CONFIG}" ]]; then
+          set -a
+            . ${BUILD_CONFIG}
+          set +a
+        fi
+
+        # Don't create SYSTEM_DLKM_STAGING_DIR and copy the OUT/lib folder cause it has many unnecessary files
+        # Instead create lib and copy modules folder from OUT/lib/modules to SYSTEM_DLKM_STAGING_DIR/lib/
+        mkdir -p "${SYSTEM_DLKM_STAGING_DIR}/lib"
         
         # copy modules and other files generated by depmod to staging dir
-        cp -a "$OUT/lib/modules" "$DLKM_STAGING_DIR/lib/"
-        cp "$DLKM_STAGING_ROOT/modules.order" "$DLKM_STAGING_ROOT/modules.load"
-        cp "$DLKM_STAGING_ROOT/modules.load" "$OUT/system_dlkm.modules.load"
+        cp -a "${OUT}/lib/modules" "${SYSTEM_DLKM_STAGING_DIR}/lib/"
 
-        # remove unnecessary files from DLKM_STAGING_ROOT
-        cd "$DLKM_STAGING_ROOT"
-        rm build source modules.builtin.modinfo
+        if [[ -f "${PREBUILTS}/system_dlkm.modules.load" ]]; then
+          cp "${PREBUILTS}/system_dlkm.modules.load" "${SYSTEM_DLKM_STAGING_ROOT}/modules.load"
+        else
+          cp "${SYSTEM_DLKM_STAGING_ROOT}/modules.order" "${SYSTEM_DLKM_STAGING_ROOT}/modules.load"
+        fi
+        cp "${SYSTEM_DLKM_STAGING_ROOT}/modules.load" "${OUT}/system_dlkm.modules.load"
 
-        # add other files found in stock system_dlkm
-        cd "$DLKM_STAGING_DIR"
-        mkdir -p etc
-        cd etc
-        curl -sL -o build.prop "$PREBUILTS/system_dlkm/build.prop"
-        touch fs_config_dirs fs_config_files
+        # remove unnecessary files from SYSTEM_DLKM_STAGING_ROOT
+        cd "${SYSTEM_DLKM_STAGING_ROOT}"
+        rm build source || true
 
-        cd "$OUT"
+        # Extra cmds for device specific needs
+        if [[ -v SYSTEM_DLKM_EXTRA_CMDS ]]; then
+          eval "${SYSTEM_DLKM_EXTRA_CMDS}"
+        fi
+
+        # Add other files found in stock system_dlkm
+        # Allow build.config to define what goes into system_dlkm
+        if [[ ! -v SYSTEM_DLKM_EXTRA_FILES ]]; then
+          mkdir -p "${SYSTEM_DLKM_STAGING_DIR}/etc"
+          if [[ -f "${PREBUILTS}/etc/build.prop" ]]; then
+            cp "${PREBUILTS}/etc/build.prop" "${SYSTEM_DLKM_STAGING_DIR}/etc"
+            touch "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_files"
+          fi
+        else
+          eval "${SYSTEM_DLKM_EXTRA_FILES}"
+        fi
+
         # Create temporary prop file for system_dlkm image
         system_dlkm_props_file="$(mktemp)"
-        echo -e "system_dlkm_fs_type=ext4\n" >> ${system_dlkm_props_file}
-        echo -e "use_dynamic_partition_size=true\n" >> ${system_dlkm_props_file}
-        echo -e "ext_mkuserimg=mkuserimg_mke2fs\n" >> ${system_dlkm_props_file}
-        echo -e "ext4_share_dup_blocks=true\n" >> ${system_dlkm_props_file}
 
-        build_image "$DLKM_STAGING_DIR" "${system_dlkm_props_file}" "$OUT/system_dlkm.img" /dev/null
+        # Allow build.config to introduce custom system_dlkm props file
+        if [[ -f "${PREBUILTS}/system_dlkm.prop" ]]; then
+          echo -e "::debug:: Using custom system_dlkm prop file with props:\n$(cat "${PREBUILTS}/system_dlkm.prop")"
+          cat "${PREBUILTS}/system_dlkm.prop" >> ${system_dlkm_props_file}
+        else
+          if [[ ! -v SYSTEM_DLKM_PROPS_FILE ]]; then
+            echo -e "system_dlkm_fs_type=ext4\n" >> ${system_dlkm_props_file}
+            echo -e "use_dynamic_partition_size=true\n" >> ${system_dlkm_props_file}
+            echo -e "ext_mkuserimg=mkuserimg_mke2fs\n" >> ${system_dlkm_props_file}
+            echo -e "ext4_share_dup_blocks=true\n" >> ${system_dlkm_props_file}
+            # echo -e "partition_name=system_dlkm\n" >> ${system_dlkm_props_file}
+            # echo -e "mount_point=system_dlkm\n" >> ${system_dlkm_props_file}
 
+            if [[ -f "${PREBUILTS}/system_dlkm.selinux.fc" ]]; then
+              echo -e "selinux_fc=${PREBUILTS}/system_dlkm.selinux.fc\n" >> ${system_dlkm_props_file}
+            fi
+          else
+            echo -e "::debug:: Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
+            cat "${SYSTEM_DLKM_PROPS_FILE}" >> ${system_dlkm_props_file}
+          fi
+        fi
+
+        echo -e "::debug:: system_dlkm staging tree :\n$(tree "${SYSTEM_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.tree"
+
+        echo "::info:: Building system_dlkm Image"
+        build_image "${SYSTEM_DLKM_STAGING_DIR}" "${system_dlkm_props_file}" "${OUT}/system_dlkm.img" /dev/null
+
+        echo "::info:: Adding hashtree footer using avbtool"
         avbtool add_hashtree_footer \
             --partition_name system_dlkm \
-            --image "$OUT/system_dlkm.img"
+            --image "${OUT}/system_dlkm.img"
 
-        SYSTEM_DLKM_SHA256=$(sha256sum "$OUT/system_dlkm.img" | cut -d' ' -f1)
+        SYSTEM_DLKM_SHA256=$(sha256sum "${OUT}/system_dlkm.img" | cut -d' ' -f1)
         echo "system_dlkm_sha256=${SYSTEM_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
 
-        cp "$OUT/system_dlkm.img" "$ARTIFACTS_DIR"
-        cp "$OUT/system_dlkm.modules.load" "$ARTIFACTS_DIR"
-        cp "$OUT/system_dlkm.modules.load" "$ARTIFACTS_DIR_DEBUG"
+        cp "${OUT}/system_dlkm.img" "${ARTIFACTS_DIR}"
+        cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR}"
+        cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
 
     - name: Create vendor_boot
       id: create_vendor_boot
       if: ${{ inputs.compile_dlkm == 'true' }}
       shell: bash
       run: |
-        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/${CODENAME}-${OS_SHORT}"
-        if [ -f "$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py" ]; then
+        PREBUILTS="${KERNEL_PATCHES}/device/${CODENAME}-${OS_SHORT}/vendor_boot"
+        if [[ -f "$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py" ]]; then
           MKBOOTIMG="$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py"
         else
           MKBOOTIMG="mkbootimg"
         fi
 
-        if [ -f "${BUILD_CONFIG}" ]; then
+        OUT="${MSM}/out"
+        UNAME=$(ls "${OUT}/lib/modules/")
+        MODULES_STAGING_ROOT="${OUT}/lib/modules/${UNAME}"
+        VENDOR_BOOT_STAGING_DIR="${OUT}/vendor_boot_staging"
+        RAMDISK_STAGING_DIR="${VENDOR_BOOT_STAGING_DIR}/ramdisk"
+        RAMDISK_STAGING_MODULES="${RAMDISK_STAGING_DIR}/lib/modules"
+        DEPMOD_DIR="${RAMDISK_STAGING_DIR}"
+        # After depmod delete this dir since ramdisk is flattened
+        DEPMOD_DIR_ROOT="${VENDOR_BOOT_STAGING_DIR}/ramdisk/lib/modules/${UNAME}"
+
+        if [[ -d "${KERNEL_PLATFORM}/build/build-tools/path" ]]; then
+          export PATH="${KERNEL_PLATFORM}/build/build-tools/path/linux-x86:$PATH"
+        else
+          export PATH="${KERNEL_PLATFORM}/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
+        fi
+
+        if [[ -f "${BUILD_CONFIG}" ]]; then
           set -a
             . ${BUILD_CONFIG}
           set +a
         fi
 
-        OUT="$MSM/out"
-        UNAME=$(ls "$OUT/lib/modules/")
-        MODULES_STAGING_ROOT="$OUT/lib/modules/$UNAME"
-        VENDOR_BOOT_STAGING_DIR="$OUT/vendor_boot_staging"
-        RAMDISK_STAGING_DIR="$VENDOR_BOOT_STAGING_DIR/ramdisk"
-        RAMDISK_STAGING_MODULES="$RAMDISK_STAGING_DIR/lib/modules"
-        DEPMOD_DIR="$RAMDISK_STAGING_DIR"
-        # After depmod delete this dir since ramdisk is flattened
-        DEPMOD_DIR_ROOT="$VENDOR_BOOT_STAGING_DIR/ramdisk/lib/modules/$UNAME"
-
-        if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
-          export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
-        else
-          export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
-        fi
-
         # Create folder of highest depth amongst all
-        mkdir -p "$DEPMOD_DIR_ROOT"
+        mkdir -p "${DEPMOD_DIR_ROOT}"
 
         # add prebuilt files
-        cd "$RAMDISK_STAGING_MODULES"
-        curl -sL -o modules.load "$PREBUILTS/vendor_boot/vendor_ramdisk/modules.load"
-        curl -sL -o modules.load.recovery "$PREBUILTS/vendor_boot/vendor_ramdisk/modules.load.recovery"
-        curl -sL -o modules.blocklist "$PREBUILTS/vendor_boot/vendor_ramdisk/modules.blocklist"
+        cd "${RAMDISK_STAGING_MODULES}"
 
-        ramdisk_modules="$(mktemp)"
-        curl -sL "$PREBUILTS/vendor_boot/vendor_ramdisk/ramdisk_modules.txt" >> "$ramdisk_modules"
+        shopt -s nullglob
+        for file in "${PREBUILTS}"/vendor_boot.modules.*; do
+          prebuilt_file=$(basename "$file")
+          if [[ "${prebuilt_file}" == "vendor_boot.modules.include" ]]; then
+            continue
+          fi
+          cp "$file" "${RAMDISK_STAGING_MODULES}/${prebuilt_file#vendor_boot.}"
+        done
+        shopt -u nullglob
+
+        if [[ ! -f "${PREBUILTS}/vendor_boot.modules.include" ]]; then
+          echo "::error:: vendor_boot.modules.include file not found in PREBUILTS folder! Stopping build"
+          exit 1
+        fi
+
+        ramdisk_modules="${PREBUILTS}/vendor_boot.modules.include"
         # copy modules to DEPMOD_DIR_ROOT
         # NOTE: do depmod from DEPMOD_DIR
-        cd "$MODULES_STAGING_ROOT"
+        cd "${MODULES_STAGING_ROOT}"
         missing_modules=$(mktemp)
-        while IFS= read -r module || [ -n "$module" ]; do
-          module_path=$(find . -name "$module" -print -quit)
-          if [ -n "$module_path" ]; then
-            cp "$module_path" "$DEPMOD_DIR_ROOT"
+        while IFS= read -r module || [[ -n "${module}" ]]; do
+          module_path=$(find . -name "${module}" -print -quit)
+          if [[ -n "${module_path}" ]]; then
+            cp "${module_path}" "${DEPMOD_DIR_ROOT}"
           else
-            if curl -fsSL "$PREBUILTS/proprietary/$module" -o "$DEPMOD_DIR_ROOT/$module"; then
-              echo "Using $module from prebuilts."
+            if [[ -f "${PREBUILTS}/proprietary/${module}" ]]; then
+              echo "::note:: Using ${module} from prebuilts."
+              cp "${PREBUILTS}/proprietary/${module}" "${DEPMOD_DIR_ROOT}/${module}"
             else
-              echo "WARNING: $module not found"
-              echo "$module" >> "$missing_modules"
+              echo "::warning:: ${module} not found"
+              echo "${module}" >> "${missing_modules}"
             fi
           fi
-        done < "$ramdisk_modules"
+        done < "${ramdisk_modules}"
+
+        if [[ -s "${missing_modules}" ]]; then
+          echo "::error:: The following ramdisk modules are missing :"
+          echo "$(cat "${missing_modules}")"
+          echo "Stopping build!"
+          exit 1
+        fi
 
         # Apply depmod and copy required artifacts
-        cd "$DEPMOD_DIR"
-        depmod -F "$KBUILD_MIXED_TREE_DIR/System.map" -b . "$UNAME"
-        cp -p "$DEPMOD_DIR_ROOT"/modules.{alias,dep,softdep} "$RAMDISK_STAGING_MODULES"
+        cd "${DEPMOD_DIR}"
+        echo "::info:: Performing depmod"
+        if [[ "${BUILD_TYPE}" == "Monolithic Build" ]]; then
+          # During Monolithic Builds we don't perform mixed build so there's no KBUILD_MIXED_TREE
+          # we use System.map from OUT dir instead
+          depmod -F "${OUT}/System.map" -b . "${UNAME}"
+        else
+          depmod -F "${KBUILD_MIXED_TREE_DIR}/System.map" -b . "${UNAME}"
+        fi
+        cp -p "${DEPMOD_DIR_ROOT}"/modules.{alias,dep,softdep} "${RAMDISK_STAGING_MODULES}"
 
-        # Copy modules from depmod dir and delete the dir since vendor dlkm is flattened
-        find "$DEPMOD_DIR_ROOT" -type f -name '*.ko' -exec cp {} "$RAMDISK_STAGING_MODULES/" \;
-        rm -rf "$DEPMOD_DIR_ROOT"
+        # Copy modules from depmod dir root and delete the dir since vendor boot is flattened
+        find "${DEPMOD_DIR_ROOT}" -type f -name '*.ko' -exec cp {} "${RAMDISK_STAGING_MODULES}/" \;
+        rm -rf "${DEPMOD_DIR_ROOT}"
 
         # Add additional files that will go into ramdisk
-        mkdir -p "$RAMDISK_STAGING_DIR/first_stage_ramdisk"
-        cd "$RAMDISK_STAGING_DIR/first_stage_ramdisk"
-        curl -sL -o fstab.qcom "$PREBUILTS/vendor_boot/vendor_ramdisk/first_stage_ramdisk/fstab.qcom"
+        if [[ -d "${PREBUILTS}/first_stage_ramdisk" ]]; then
+          mkdir -p "$RAMDISK_STAGING_DIR/first_stage_ramdisk"
+          shopt -s nullglob
+          cp "${PREBUILTS}/first_stage_ramdisk"/* "${RAMDISK_STAGING_DIR}/first_stage_ramdisk"
+          shopt -u nullglob
+	else
+	  echo "::warning:: first_stage_ramdisk folder is missing for vendor boot partition in PREBUILTS dir"
+	fi
 
-        cd "$VENDOR_BOOT_STAGING_DIR"
+        cd "${VENDOR_BOOT_STAGING_DIR}"
 
-         # Create cpio compressed ramdisk using mkbootfs; use cpio like cyberknight777 did in his YAKB??
-        mkbootfs "$RAMDISK_STAGING_DIR" > "$OUT/ramdisk.cpio"
+        # Create cpio compressed ramdisk using mkbootfs; use cpio like cyberknight777 did in his YAKB??
+        MKBOOTIMG_RAMDISK_CPIO="${OUT}/ramdisk.cpio" 
+        mkbootfs "${RAMDISK_STAGING_DIR}" > "${MKBOOTIMG_RAMDISK_CPIO}"
 
-        curl -sL -o "$OUT/vendor-bootconfig.img" "$PREBUILTS/vendor_boot/bootconfig"
+        # Compress ramdisk according to desired ramdisk compression
+        LZ4_RAMDISK=${LZ4_RAMDISK:-1}
+        if [[ "${LZ4_RAMDISK}" == "1" ]]; then
+          RAMDISK_COMPRESS="lz4 -c -l ${LZ4_RAMDISK_COMPRESS_ARGS:--12 --favor-decSpeed}"
+          RAMDISK_EXT="lz4"
+        else
+          RAMDISK_COMPRESS="gzip -c -f"
+          RAMDISK_EXT="gz"
+        fi
+        ${RAMDISK_COMPRESS} "${MKBOOTIMG_RAMDISK_CPIO}" > "${OUT}/ramdisk.${RAMDISK_EXT}"
+
+        if [[ -f "${PREBUILTS}/bootconfig" ]]; then
+          cat "${PREBUILTS}/bootconfig" > "${OUT}/vendor-bootconfig.img"
+        else
+          echo "::warning:: bootconfig is missing !"
+        fi
 
         # Note : prebuilt vendor cmdline already contains bootconfig , so no need to append it!
-        VENDOR_CMDLINE=$(curl -sL "$PREBUILTS/vendor_boot/cmdline.txt")
+        if [[ -f "${PREBUILTS}/cmdline.txt" ]]; then
+          VENDOR_CMDLINE=$(cat "${PREBUILTS}/cmdline.txt")
+        else
+          echo "::warning:: cmdline is missing !"
+        fi
+       
+        if [ -n "${PRE_VENDOR_BOOT_MKBOOTIMG_CMDS:-}" ]; then
+          eval "${PRE_VENDOR_BOOT_MKBOOTIMG_CMDS}"
+        fi
 
-        # add fstab and create cpio compressed archive
-
-        if [ -n "${PRE_VENDOR_MKBOOTIMG_CMDS:-}" ]; then
-          eval "${PRE_VENDOR_MKBOOTIMG_CMDS}"
+        # Extra cmds for device specific needs
+        if [ -n "${VENDOR_BOOT_EXTRA_CMDS:-}" ]; then
+          eval "${VENDOR_BOOT_EXTRA_CMDS}"
         fi
 
         # Allow build.config files to override generic v4 no ramdisk mkbootimg flags
-        if [ ! -v VENDOR_MKBOOTIMG_ARGS ]; then
-          VENDOR_MKBOOTIMG_ARGS=(
+        if [[ ! -v VENDOR_BOOT_MKBOOTIMG_ARGS ]]; then
+          VENDOR_BOOT_MKBOOTIMG_ARGS=(
             "--header_version" "4"
             "--pagesize" "4096"
-            "--vendor_cmdline" "$VENDOR_CMDLINE"
-            "--dtb" "$OUT/dtb.img"
-            "--vendor_bootconfig" "$OUT/vendor-bootconfig.img"
-            "--vendor_boot" "$OUT/vendor_boot.img"
-            "--vendor_ramdisk" "$OUT/ramdisk.cpio"
+            "--vendor_cmdline" "${VENDOR_CMDLINE}"
+            "--dtb" "${OUT}/dtb.img"
+            "--vendor_bootconfig" "${OUT}/vendor-bootconfig.img"
+            "--vendor_boot" "${OUT}/vendor_boot.img"
+            "--vendor_ramdisk" "${OUT}/ramdisk.${RAMDISK_EXT}"
           )
         fi
 
-        echo "Creating vendor boot image"
-        "$MKBOOTIMG" "${VENDOR_MKBOOTIMG_ARGS[@]}"
+        echo -e "::debug:: vendor_boot staging tree :\n$(tree "${VENDOR_BOOT_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_boot.tree"
 
-        if [ -n "${POST_VENDOR_MKBOOTIMG_CMDS:-}" ]; then
-          eval "${POST_VENDOR_MKBOOTIMG_CMDS}"
+        echo "::info:: Creating vendor boot image"
+        "${MKBOOTIMG}" "${VENDOR_BOOT_MKBOOTIMG_ARGS[@]}"
+
+        if [ -n "${POST_VENDOR_BOOT_MKBOOTIMG_CMDS:-}" ]; then
+          eval "${POST_VENDOR_BOOT_MKBOOTIMG_CMDS}"
         fi
 
-        echo "Signing vendor boot image"
+        # Allow build.config to sign vendor_boot images using custom algo and keys
+        if [[ -n "${AVB_SIGN_VENDOR_BOOT_CMDS:-}" ]]; then
+          echo "Signing vendor_boot image"
+          eval "${AVB_SIGN_VENDOR_BOOT_CMDS}"
+        elif [[ "${AVB_SIGN_VENDOR_BOOT_IMG:-1}" == "1" ]]; then
+          # Allow build.config to override vendor_boot image signing
+          # Users have three choices : - sign manually using their own keys
+          #                            - sign using test keys
+          #                            - don't sign at all
+          echo "Signing vendor_boot image"
 
-        # Allow build.config to override vendor_boot image signing 
-        if [ "${AVB_SIGN_VENDOR_BOOT_IMG:-1}" == "1" ]; then
+          # Allow build.config to ovveride default signing algorithm and vendor_boot signing key
+          AVB_SIGN_VENDOR_BOOT_ALGO=${AVB_SIGN_VENDOR_BOOT_ALGO:-SHA256_RSA4096}
+          AVB_SIGN_VENDOR_BOOT_KEY=${AVB_SIGN_VENDOR_BOOT_KEY:-${KERNEL_PLATFORM}/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem}
+
           avbtool add_hash_footer \
-            --partition_name boot \
-            --partition_size "$VENDOR_BOOT_PARTITION_SIZE" \
-            --image "$OUT/vendor_boot.img" \
-            --algorithm "SHA256_RSA4096" \
-            --key "$KERNEL_PLATFORM/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem"
+            --partition_name vendor_boot \
+            --partition_size "${VENDOR_BOOT_PARTITION_SIZE}" \
+            --image "${OUT}/vendor_boot.img" \
+            --algorithm "${AVB_SIGN_VENDOR_BOOT_ALGO}" \
+            --key "${AVB_SIGN_VENDOR_BOOT_KEY}"
         fi
 
-        VENDOR_BOOT_SHA256=$(sha256sum "$OUT/vendor_boot.img" | cut -d' ' -f1)
+        VENDOR_BOOT_SHA256=$(sha256sum "${OUT}/vendor_boot.img" | cut -d' ' -f1)
         echo "vendor_boot_sha256=${VENDOR_BOOT_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
 
-        cp "$RAMDISK_STAGING_MODULES/modules.load" "$OUT/vendor_boot.modules.load"
-        cp "$RAMDISK_STAGING_MODULES/modules.load.recovery" "$OUT/vendor_boot.modules.load.recovery"
+        cp "${RAMDISK_STAGING_MODULES}/modules.load" "${OUT}/vendor_boot.modules.load"
+        cp "${RAMDISK_STAGING_MODULES}/modules.load.recovery" "${OUT}/vendor_boot.modules.load.recovery"
 
-        cp "$OUT/vendor_boot.img" "$ARTIFACTS_DIR"
-        cp "$OUT/vendor_boot.modules.load" "$ARTIFACTS_DIR"
-        cp "$OUT/vendor_boot.modules.load" "$ARTIFACTS_DIR_DEBUG"
-        cp "$OUT/vendor_boot.modules.load.recovery" "$ARTIFACTS_DIR"
-        cp "$OUT/vendor_boot.modules.load.recovery" "$ARTIFACTS_DIR_DEBUG"
-        cp "$OUT/ramdisk.cpio" "$ARTIFACTS_DIR_DEBUG"
-        cp "$OUT/vendor-bootconfig.img" "ARTIFACTS_DIR_DEBUG"
-        cp "$missing_modules" "$ARTIFACTS_DIR_DEBUG/vendor_boot.modules.load.missing"
+        cp "${OUT}/vendor_boot.img" "${ARTIFACTS_DIR}"
+        cp "${OUT}/vendor_boot.modules.load" "${ARTIFACTS_DIR}"
+        cp "${OUT}/vendor_boot.modules.load" "${ARTIFACTS_DIR_DEBUG}"
+        cp "${OUT}/vendor_boot.modules.load.recovery" "${ARTIFACTS_DIR}"
+        cp "${OUT}/vendor_boot.modules.load.recovery" "${ARTIFACTS_DIR_DEBUG}"
+        cp "${OUT}/ramdisk.cpio" "${ARTIFACTS_DIR_DEBUG}"
+        cp "${OUT}/vendor-bootconfig.img" "${ARTIFACTS_DIR_DEBUG}"
 
     - name: Create vendor_dlkm
       id: create_vendor_dlkm
       if: ${{ inputs.compile_dlkm == 'true' }}
       shell: bash
       run: |
-        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/$MODEL"
-        OUT="$MSM/out"
-        UNAME=$(ls "$OUT/lib/modules/")
-        MODULES_STAGING_ROOT="$OUT/lib/modules/$UNAME"
-        DLKM_STAGING_DIR="$OUT/vendor_dlkm_staging"
-        DLKM_STAGING_ROOT="$DLKM_STAGING_DIR/lib/modules"
-        DEPMOD_DIR="$DLKM_STAGING_DIR"
+        PREBUILTS="${KERNEL_PATCHES}/device/${CODENAME}-${OS_SHORT}/vendor_dlkm"
+        OUT="${MSM}/out"
+        UNAME=$(ls "${OUT}/lib/modules/")
+        MODULES_STAGING_ROOT="${OUT}/lib/modules/$UNAME"
+        VENDOR_DLKM_STAGING_DIR="${OUT}/vendor_dlkm_staging"
+        VENDOR_DLKM_STAGING_ROOT="${VENDOR_DLKM_STAGING_DIR}/lib/modules"
+        DEPMOD_DIR="${VENDOR_DLKM_STAGING_DIR}"
         # After depmod delete this dir since vendor_dlkm is flattened
-        DEPMOD_DIR_ROOT="$DLKM_STAGING_DIR/lib/modules/$UNAME"
+        DEPMOD_DIR_ROOT="${VENDOR_DLKM_STAGING_DIR}/lib/modules/${UNAME}"
 
-        if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
-          export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
+        if [[ -d "${KERNEL_PLATFORM}/build/build-tools/path" ]]; then
+          export PATH="${KERNEL_PLATFORM}/build/build-tools/path/linux-x86:$PATH"
         else
-          export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
+          export PATH="${KERNEL_PLATFORM}/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
+        fi
+
+        if [[ -f "${BUILD_CONFIG}" ]]; then
+          set -a
+            . ${BUILD_CONFIG}
+          set +a
         fi
 
         # Create folder of highest depth amongst all
-        mkdir -p "$DEPMOD_DIR_ROOT"
+        mkdir -p "${DEPMOD_DIR_ROOT}"
 
         # add prebuilt files
-        cd "$DLKM_STAGING_ROOT"
-        curl -sL -o modules.load "$PREBUILTS/vendor_dlkm/modules.load"
-        curl -sL "$PREBUILTS/vendor_dlkm/modules.load.extra" >> modules.load
-        curl -sL -o modules.blocklist "$PREBUILTS/vendor_dlkm/modules.blocklist"
-        curl -sL -o system_dlkm.modules.blocklist "$PREBUILTS/vendor_dlkm/system_dlkm.modules.blocklist"
+        cd "${VENDOR_DLKM_STAGING_ROOT}"
+
+        shopt -s nullglob
+        for file in "${PREBUILTS}"/vendor_dlkm.modules.*; do
+          prebuilt_file=$(basename "$file")
+          if [[ "${prebuilt_file}" == "vendor_dlkm.modules.include" ]]; then
+            continue
+          fi
+          cp "$file" "${VENDOR_DLKM_STAGING_ROOT}/${prebuilt_file#vendor_dlkm.}"
+        done
+        shopt -u nullglob
+
+        if [[ ! -f "${PREBUILTS}/vendor_dlkm.modules.include" ]]; then
+          echo "::error:: vendor_dlkm.modules.include not found !"
+          exit 1
+        fi
+
+        if [[ -f "${PREBUILTS}/system_dlkm.modules.blocklist" ]]; then
+          cp "${PREBUILTS}/system_dlkm.modules.blocklist" "${VENDOR_DLKM_STAGING_ROOT}"
+        fi
 
         # copy modules to DEPMOD_DIR_ROOT
         # NOTE: do depmod from DEPMOD_DIR
-        cd "$MODULES_STAGING_ROOT"
+        cd "${MODULES_STAGING_ROOT}"
         missing_modules=$(mktemp)
-        while IFS= read -r module || [ -n "$module" ]; do
-          module_path=$(find . -name "$module" -print -quit)
-          if [ -n "$module_path" ]; then
-            cp "$module_path" "$DEPMOD_DIR_ROOT"
+        while IFS= read -r module || [[ -n "${module}" ]]; do
+          module_path=$(find . -name "${module}" -print -quit)
+          if [[ -n "${module_path}" ]]; then
+            cp "${module_path}" "${DEPMOD_DIR_ROOT}"
           else
-            if curl -fsSL "$PREBUILTS/proprietary/$module" -o "$DEPMOD_DIR_ROOT/$module"; then
-              echo "Using $module from prebuilts."
+            if [[ -f "${PREBUILTS}/proprietary/${module}" ]]; then
+              echo "::note:: Using ${module} from prebuilts."
+              cp "${PREBUILTS}/proprietary/${module}" "${DEPMOD_DIR_ROOT}/${module}"
             else
-              echo "WARNING: $module not found"
-              echo "$module" >> "$missing_modules"
+              echo "::warning:: ${module} not found"
+              echo "${module}" >> "${missing_modules}"
             fi
           fi
-        done < "$DLKM_STAGING_ROOT/modules.load"
+        done < "${PREBUILTS}/vendor_dlkm.modules.include"
+
+        if [[ -s "${missing_modules}" ]]; then
+          echo "::error:: The following ramdisk modules are missing :"
+          echo "$(cat "${missing_modules}")"
+          echo "Stopping build!"
+          exit 1
+        fi
 
         # NOTE: modules.order is not present in stock_dlkm, this modules.order is strictly for debugging purposes only !
         modules_order="$(mktemp)"
-        cat "$MODULES_STAGING_ROOT/modules.order" >> "$modules_order"
+        cat "${MODULES_STAGING_ROOT}/modules.order" >> "${modules_order}"
         # Append modules.order in the sequence we compiled them
         for MODULE in "${EXT_MODULES[@]}"; do
-          find "$MODULES_STAGING_ROOT/extra/$MODULE" -type f -name 'modules.order*' -exec cat {} >> "$modules_order" \;
+          find "${MODULES_STAGING_ROOT}/extra/${MODULE}" -type f -name 'modules.order*' -exec cat {} >> "${modules_order}" \;
         done
-        sed -i 's/.*\///g' "$modules_order"
-        cp "$modules_order" "$ARTIFACTS_DIR_DEBUG/modules.order"
+        sed -i 's/.*\///g' "${modules_order}"
+        cp "${modules_order}" "${ARTIFACTS_DIR_DEBUG}/modules.order"
 
         # Apply depmod and copy required artifacts
-        cd "$DEPMOD_DIR"
-        depmod -F "$KBUILD_MIXED_TREE_DIR/System.map" -b . "$UNAME"
-        cp -p "$DEPMOD_DIR_ROOT"/modules.{alias,dep,softdep} "$DLKM_STAGING_ROOT"
+        cd "${DEPMOD_DIR}"
+        echo "::info:: Performing depmod"
+        if [[ "${BUILD_TYPE}" == "Monolithic Build" ]]; then
+          # During Monolithic Builds we don't perform mixed build so there's no KBUILD_MIXED_TREE
+          # we use System.map from OUT dir instead
+          depmod -F "${OUT}/System.map" -b . "${UNAME}"
+        else
+          depmod -F "${KBUILD_MIXED_TREE_DIR}/System.map" -b . "${UNAME}"
+        fi
+        cp -p "${DEPMOD_DIR_ROOT}"/modules.{alias,dep,softdep} "${VENDOR_DLKM_STAGING_ROOT}"
 
         # Copy modules from depmod dir and delete the dir since vendor dlkm is flattened
-        find "$DEPMOD_DIR_ROOT" -type f -name '*.ko' -exec cp {} "$DLKM_STAGING_ROOT/" \;
-        rm -rf "$DEPMOD_DIR_ROOT"
+        find "${DEPMOD_DIR_ROOT}" -type f -name '*.ko' -exec cp {} "${VENDOR_DLKM_STAGING_ROOT}/" \;
+        rm -rf "${DEPMOD_DIR_ROOT}"
 
-        cp "$DLKM_STAGING_ROOT/modules.load" "$OUT/vendor_dlkm.modules.load"
+        cp "${VENDOR_DLKM_STAGING_ROOT}/modules.load" "${OUT}/vendor_dlkm.modules.load"
 
-        # add other files found in stock vendor_dlkm
-        cd "$DLKM_STAGING_DIR"
-        mkdir -p etc
-        cd etc
-        curl -sL -o build.prop "$PREBUILTS/vendor_dlkm/build.prop"
-        touch fs_config_dirs fs_config_files
+        # Add other files found in stock vendor_dlkm
+        # Allow build.config to define what goes into vendor_dlkm
+        # VENDOR_DLKM_STAGING_DIR holds the root path of the dlkm partition
+        if [[ ! -v VENDOR_DLKM_EXTRA_FILES ]]; then
+          mkdir -p "${VENDOR_DLKM_STAGING_DIR}/etc"
+          if [[ -f "${PREBUILTS}/etc/build.prop" ]]; then
+            cp "${PREBUILTS}/etc/build.prop" "${VENDOR_DLKM_STAGING_DIR}/etc"
+            touch "${VENDOR_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${VENDOR_DLKM_STAGING_DIR}/etc/fs_config_files"
+          fi
+        else
+          eval "${VENDOR_DLKM_EXTRA_FILES}"
+        fi
 
-        cd "$OUT"
+        cd "${OUT}"
         # Create temporary prop file for vendor_dlkm image
         vendor_dlkm_props_file="$(mktemp)"
-        echo -e "vendor_dlkm_fs_type=ext4\n" >> ${vendor_dlkm_props_file}
-        echo -e "use_dynamic_partition_size=true\n" >> ${vendor_dlkm_props_file}
-        echo -e "ext_mkuserimg=mkuserimg_mke2fs\n" >> ${vendor_dlkm_props_file}
-        echo -e "ext4_share_dup_blocks=true\n" >> ${vendor_dlkm_props_file}
 
-        build_image "$DLKM_STAGING_DIR" "${vendor_dlkm_props_file}" "$OUT/vendor_dlkm.img" /dev/null
+        # Allow build.config to introduce custom vendor_dlkm props file
+        if [[ -f "${PREBUILTS}/vendor_dlkm.prop" ]]; then
+          echo -e "::debug:: Using custom vendor_dlkm prop file with props:\n$(cat "${PREBUILTS}/vendor_dlkm.prop")"
+          cat "${PREBUILTS}/vendor_dlkm.prop" >> ${vendor_dlkm_props_file}
+        else
+          if [[ ! -v VENDOR_DLKM_PROPS_FILE ]]; then
+            echo -e "vendor_dlkm_fs_type=ext4\n" >> ${vendor_dlkm_props_file}
+            echo -e "use_dynamic_partition_size=true\n" >> ${vendor_dlkm_props_file}
+            echo -e "ext_mkuserimg=mkuserimg_mke2fs\n" >> ${vendor_dlkm_props_file}
+            echo -e "ext4_share_dup_blocks=true\n" >> ${vendor_dlkm_props_file}
 
-        VENDOR_DLKM_SHA256=$(sha256sum "$OUT/vendor_dlkm.img" | cut -d' ' -f1)
+            if [[ -f "${PREBUILTS}/vendor_dlkm.selinux.fc" ]]; then
+              echo -e "selinux_fc=${PREBUILTS}/vendor_dlkm.selinux.fc\n" >> ${vendor_dlkm_props_file}
+            fi
+          else
+            echo -e "::debug:: Using custom vendor_dlkm prop file with props:\n$(cat "${VENDOR_DLKM_PROPS_FILE}")"
+            cat "${VENDOR_DLKM_PROPS_FILE}" >> ${vendor_dlkm_props_file}
+          fi
+        fi
+
+        # Extra cmds for device specific needs
+        if [[ -v VENDOR_DLKM_EXTRA_CMDS ]]; then
+          eval "${VENDOR_DLKM_EXTRA_CMDS}"
+        fi
+
+        echo -e "::debug:: vendor_dlkm staging tree :\n$(tree "${VENDOR_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_dlkm.tree"
+
+        echo "::info:: Building vendor_dlkm Image"
+        build_image "${VENDOR_DLKM_STAGING_DIR}" "${vendor_dlkm_props_file}" "${OUT}/vendor_dlkm.img" /dev/null
+
+        VENDOR_DLKM_SHA256=$(sha256sum "${OUT}/vendor_dlkm.img" | cut -d' ' -f1)
         echo "vendor_dlkm_sha256=${VENDOR_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
 
-        cp "$OUT/vendor_dlkm.img" "$ARTIFACTS_DIR"
-        cp "$OUT/vendor_dlkm.modules.load" "$ARTIFACTS_DIR"
-        cp "$OUT/vendor_dlkm.modules.load" "$ARTIFACTS_DIR_DEBUG"
-        cp "$missing_modules" "$ARTIFACTS_DIR_DEBUG/vendor_dlkm.modules.load.missing"
+        cp "${OUT}/vendor_dlkm.img" "${ARTIFACTS_DIR}"
+        cp "${OUT}/vendor_dlkm.modules.load" "${ARTIFACTS_DIR}"
+        cp "${OUT}/vendor_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
 
     - name: Filter modules
       shell: bash
@@ -945,7 +1158,7 @@ runs:
         # Remove modules in the default list
 
         while IFS= read -r module; do
-          if [ -e "$module" ]; then
+          if [[ -e "$module" ]]; then
             rm -f "$module"
             echo "Removed module: $module"
           fi
@@ -982,25 +1195,25 @@ runs:
       run: |
         set -euo pipefail
 
-        if [ "$duration" -ge 60 ]; then
+        if [[ "$duration" -ge 60 ]]; then
           duration="$((duration / 60))m $((duration % 60))s"
         else
           duration="${duration}s"
         fi
 
-        if [ "$duration_oplus_ext" -ge 60 ]; then
+        if [[ "$duration_oplus_ext" -ge 60 ]]; then
           duration_oplus_ext="$((duration_oplus_ext / 60))m $((duration_oplus_ext % 60))s"
         else
           duration_oplus_ext="${duration_oplus_ext}s"
         fi
 
-        if [ "$duration_qcom_ext" -ge 60 ]; then
+        if [[ "$duration_qcom_ext" -ge 60 ]]; then
           duration_qcom_ext="$((duration_qcom_ext / 60))m $((duration_qcom_ext % 60))s"
         else
           duration_qcom_ext="${duration_qcom_ext}s"
         fi
 
-        if [ "$duration_dtb_ext" -ge 60 ]; then
+        if [[ "$duration_dtb_ext" -ge 60 ]]; then
           duration_dtb_ext="$((duration_dtb_ext / 60))m $((duration_dtb_ext % 60))s"
         else
           duration_dtb_ext="${duration_dtb_ext}s"
@@ -1022,9 +1235,17 @@ runs:
           echo "> [!NOTE]"
           echo "> Model: ${{ env.PRODUCT }}"
           echo ""
-          echo "> [!IMPORTANT]"
-          echo "> - Vendor boot SHA256: ${{ steps.create_vendor_boot.outputs.vendor_boot_sha256 }}"
-          echo "> - Vendor dlkm SHA256: ${{ steps.create_vendor_dlkm.outputs.vendor_dlkm_sha256 }}"
+          
+          if [[ "${{ inputs.compile_dlkm }}" == "true" ]]; then
+            echo "> [!IMPORTANT]"
+
+            if [[ "${{ inputs.compile_dlkm }}" == "true" && "${{ env.BUILD_TYPE }}" == "Monolithic Build" ]]; then
+              echo "> - System dlkm image SHA256: ${{ steps.create_system_dlkm.outputs.system_dlkm_sha256 }}"
+            fi
+
+            echo "> - Vendor boot SHA256: ${{ steps.create_vendor_boot.outputs.vendor_boot_sha256 }}"
+            echo "> - Vendor dlkm SHA256: ${{ steps.create_vendor_dlkm.outputs.vendor_dlkm_sha256 }}"
+          fi
           echo ""
           echo "> [!NOTE]"
           echo "> - Total modules built: ${{ steps.create_modules_zip.outputs.full_modules_count }}"
@@ -1104,7 +1325,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        if [ -z "$(ls -A "$ARTIFACTS_DIR_DEBUG" 2>/dev/null)" ]; then
+        if [[ -z "$(ls -A "$ARTIFACTS_DIR_DEBUG" 2>/dev/null)" ]]; then
           echo "::warning::No debug artifacts found for msm/modules, skipping notify."
           echo "zip_path=" >> "$GITHUB_OUTPUT"
           exit 0
