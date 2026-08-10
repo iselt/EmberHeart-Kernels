@@ -733,20 +733,27 @@ runs:
           cat "${PREBUILTS}/system_dlkm.prop" >> ${system_dlkm_props_file}
         else
           if [[ ! -v SYSTEM_DLKM_PROPS_FILE ]]; then
-            echo -e "system_dlkm_fs_type=ext4\n" >> ${system_dlkm_props_file}
-            echo -e "use_dynamic_partition_size=true\n" >> ${system_dlkm_props_file}
-            echo -e "ext_mkuserimg=mkuserimg_mke2fs\n" >> ${system_dlkm_props_file}
-            echo -e "ext4_share_dup_blocks=true\n" >> ${system_dlkm_props_file}
+            echo "system_dlkm_fs_type=ext4" >> ${system_dlkm_props_file}
+            echo "use_dynamic_partition_size=true" >> ${system_dlkm_props_file}
+            echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${system_dlkm_props_file}
+            echo "ext4_share_dup_blocks=true" >> ${system_dlkm_props_file}
             # echo -e "partition_name=system_dlkm\n" >> ${system_dlkm_props_file}
             # echo -e "mount_point=system_dlkm\n" >> ${system_dlkm_props_file}
-
-            if [[ -f "${PREBUILTS}/system_dlkm.selinux.fc" ]]; then
-              echo -e "selinux_fc=${PREBUILTS}/system_dlkm.selinux.fc\n" >> ${system_dlkm_props_file}
-            fi
           else
             echo -e "::debug:: Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
             cat "${SYSTEM_DLKM_PROPS_FILE}" >> ${system_dlkm_props_file}
           fi
+        fi
+
+        # Handle no new line in EOF 
+        [ -n "$(tail -c1 "${system_dlkm_props_file}")" ] && printf "\n" >> "${system_dlkm_props_file}"
+
+        if [[ -f "${PREBUILTS}/system_dlkm.selinux.fc.txt" ]]; then
+          echo "selinux_fc=${PREBUILTS}/system_dlkm.selinux.fc.txt" >> ${system_dlkm_props_file}
+        fi
+
+        if [[ -f "${PREBUILTS}/system_dlkm.fs_config.txt" ]]; then
+          echo "fs_config=${PREBUILTS}/system_dlkm.fs_config.txt" >> ${system_dlkm_props_file}
         fi
 
         echo -e "::debug:: system_dlkm staging tree :\n$(tree "${SYSTEM_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.tree"
@@ -1101,18 +1108,26 @@ runs:
           cat "${PREBUILTS}/vendor_dlkm.prop" >> ${vendor_dlkm_props_file}
         else
           if [[ ! -v VENDOR_DLKM_PROPS_FILE ]]; then
-            echo -e "vendor_dlkm_fs_type=ext4\n" >> ${vendor_dlkm_props_file}
-            echo -e "use_dynamic_partition_size=true\n" >> ${vendor_dlkm_props_file}
-            echo -e "ext_mkuserimg=mkuserimg_mke2fs\n" >> ${vendor_dlkm_props_file}
-            echo -e "ext4_share_dup_blocks=true\n" >> ${vendor_dlkm_props_file}
-
-            if [[ -f "${PREBUILTS}/vendor_dlkm.selinux.fc" ]]; then
-              echo -e "selinux_fc=${PREBUILTS}/vendor_dlkm.selinux.fc\n" >> ${vendor_dlkm_props_file}
-            fi
+            echo "vendor_dlkm_fs_type=ext4" >> ${vendor_dlkm_props_file}
+            echo "use_dynamic_partition_size=true" >> ${vendor_dlkm_props_file}
+            echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${vendor_dlkm_props_file}
+            echo "ext4_share_dup_blocks=true" >> ${vendor_dlkm_props_file}
+            # echo -e "mount_point=vendor_dlkm\n" >> ${vendor_dlkm_props_file}
           else
             echo -e "::debug:: Using custom vendor_dlkm prop file with props:\n$(cat "${VENDOR_DLKM_PROPS_FILE}")"
             cat "${VENDOR_DLKM_PROPS_FILE}" >> ${vendor_dlkm_props_file}
           fi
+        fi
+
+        # Handle no new line in EOF 
+        [ -n "$(tail -c1 "${vendor_dlkm_props_file}")" ] && printf "\n" >> "${vendor_dlkm_props_file}"
+
+        if [[ -f "${PREBUILTS}/vendor_dlkm.selinux.fc.txt" ]]; then
+          echo "selinux_fc=${PREBUILTS}/vendor_dlkm.selinux.fc.txt" >> ${vendor_dlkm_props_file}
+        fi
+
+        if [[ -f "${PREBUILTS}/vendor_dlkm.fs_config.txt" ]]; then
+          echo "fs_config=${PREBUILTS}/vendor_dlkm.fs_config.txt" >> ${vendor_dlkm_props_file}
         fi
 
         # Extra cmds for device specific needs
