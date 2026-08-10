@@ -1,8 +1,5 @@
-name: Build OnePlus EmberHeart Kernel
-
-permissions:
-  contents: write
-  actions: write
+name: Build EmberHeart Kernel
+description: "Builds Kernel"
 
 inputs:
   ksun_branch_or_hash:

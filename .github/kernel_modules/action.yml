@@ -1,8 +1,5 @@
-name: Build OnePlus kernel modules
-
-permissions:
-  contents: write
-  actions: write
+name: Build kernel modules
+description: "Builds Kernel modules and dtbs"
 
 inputs:
   optimize_level:
@@ -873,9 +870,9 @@ runs:
           shopt -s nullglob
           cp "${PREBUILTS}/first_stage_ramdisk"/* "${RAMDISK_STAGING_DIR}/first_stage_ramdisk"
           shopt -u nullglob
-	else
-	  echo "::warning:: first_stage_ramdisk folder is missing for vendor boot partition in PREBUILTS dir"
-	fi
+        else
+          echo "::warning:: first_stage_ramdisk folder is missing for vendor boot partition in PREBUILTS dir"
+        fi
 
         cd "${VENDOR_BOOT_STAGING_DIR}"
 

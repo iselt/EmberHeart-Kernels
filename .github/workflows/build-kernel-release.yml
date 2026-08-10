@@ -131,6 +131,9 @@ on:
 jobs:
   set-model:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:

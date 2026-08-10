@@ -1,8 +1,5 @@
 name: Setup Build Environment
-
-permissions:
-  contents: write
-  actions: write
+description: "Setup build environment and sync kernel source"
 
 inputs:
   op_config_json:
