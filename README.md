@@ -33,6 +33,7 @@
 > - [Link to Org repo maintained by @fatalcoder524](https://github.com/EmberHeart-Kernels/EmberHeart_OnePlus11)
 > - [Loading chipset drivers](docs/drivers.md)
 > - [Porting Kernel for other OnePlus devices (GKI2 - i.e. kernel 5.10 or above)](docs/porting.md)
+> - [Guide to use build config for device specific build customization](docs/BUILD_CONFIG_HOOKS.md)
 
 ----
 
