@@ -1307,7 +1307,11 @@ runs:
         thread_id: ${{ inputs.tg_thread_id }}
         api_base_url: ${{ inputs.tg_api_base }}
         mode: media-group
-        files: ${{ steps.create_modules_zip.outputs.modules_zip_path }}
+        files: |
+          ${{ steps.create_modules_zip.outputs.modules_zip_path }}
+          ${{ env.ARTIFACTS_DIR }}/system_dlkm.img
+          ${{ env.ARTIFACTS_DIR }}/vendor_dlkm.img
+          ${{ env.ARTIFACTS_DIR }}/vendor_boot.img
         message: |
           # Kernel Modules
 

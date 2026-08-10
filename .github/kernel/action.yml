@@ -1374,27 +1374,6 @@ runs:
         echo "Boot image created ✅"
         echo "::endgroup::"
 
-    - name: Upload Kernel Artifacts to Telegram
-      if: ${{ inputs.tg_enabled == 'true' && success() && steps.create_boot.conclusion == 'success' }}
-      uses: ./.github/telegram
-      with:
-        bot_token: ${{ inputs.tg_bot_token }}
-        chat_id: ${{ inputs.tg_chat_id }}
-        thread_id: ${{ inputs.tg_thread_id }}
-        api_base_url: ${{ inputs.tg_api_base }}
-        mode: media-group
-        files: |
-          ${{ env.ARTIFACTS_DIR }}/${{ steps.create_zip.outputs.zip_name }}
-          ${{ env.ARTIFACTS_DIR }}/boot.img
-        message: |
-          # Kernel Artifacts
-          ```
-          Model: ${{ env.PRODUCT }}
-          Kernel Version: ${{ steps.get_kernel_version.outputs.kernel_version }}
-          Compiler: {{ env.CLANG_VERSION }}
-          KernelSU Next: ${{ steps.add_ksun.outputs.ksun_tag }}
-          ```
-
     - name: Create system_dlkm Image
       if: ${{ inputs.compile_dlkm == 'true'  && env.BUILD_TYPE != 'Monolithic Build' }}
       id: create_system_dlkm
@@ -1494,6 +1473,28 @@ runs:
         cp "${OUT}/system_dlkm.img" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
+
+    - name: Upload Kernel Artifacts to Telegram
+      if: ${{ inputs.tg_enabled == 'true' && success() && steps.create_boot.conclusion == 'success' }}
+      uses: ./.github/telegram
+      with:
+        bot_token: ${{ inputs.tg_bot_token }}
+        chat_id: ${{ inputs.tg_chat_id }}
+        thread_id: ${{ inputs.tg_thread_id }}
+        api_base_url: ${{ inputs.tg_api_base }}
+        mode: media-group
+        files: |
+          ${{ env.ARTIFACTS_DIR }}/${{ steps.create_zip.outputs.zip_name }}
+          ${{ env.ARTIFACTS_DIR }}/boot.img
+          ${{ env.ARTIFACTS_DIR }}/system_dlkm.img
+        message: |
+          # Kernel Artifacts
+          ```
+          Model: ${{ env.PRODUCT }}
+          Kernel Version: ${{ steps.get_kernel_version.outputs.kernel_version }}
+          Compiler: {{ env.CLANG_VERSION }}
+          KernelSU Next: ${{ steps.add_ksun.outputs.ksun_tag }}
+          ```
 
     - name: Format build time
       id: build_time
