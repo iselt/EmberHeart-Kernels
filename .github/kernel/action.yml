@@ -503,7 +503,7 @@ runs:
           echo "::warning::BBG setup script failed, continuing anyway"
         fi
         cd "$COMMON"
-        ./scripts/config --file arch/arm64/configs/kernel.config --enable CONFIG_BBG
+        ./scripts/config --file arch/arm64/configs/kernel.config -e CONFIG_BBG
         sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
         echo "BBG LSM added ✅"
         echo "::endgroup::"
@@ -524,10 +524,10 @@ runs:
         cd "$COMMON"
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_KSU \
-          --disable CONFIG_KSU_KPROBES_HOOK \
-          --enable CONFIG_TMPFS_XATTR \
-          --enable CONFIG_TMPFS_POSIX_ACL
+          -e CONFIG_KSU \
+          -d CONFIG_KSU_KPROBES_HOOK \
+          -e CONFIG_TMPFS_XATTR \
+          -e CONFIG_TMPFS_POSIX_ACL
 
         echo "KernelSU and SUSFS configuration added ✅"
         echo "::endgroup::"
@@ -541,23 +541,23 @@ runs:
         cd "$COMMON"
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_KSU_SUSFS \
-          --enable CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT \
-          --enable CONFIG_KSU_SUSFS_SUS_PATH \
-          --enable CONFIG_KSU_SUSFS_SUS_MOUNT \
-          --enable CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT \
-          --enable CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT \
-          --enable CONFIG_KSU_SUSFS_SUS_KSTAT \
-          --disable CONFIG_KSU_SUSFS_SUS_OVERLAYFS \
-          --enable CONFIG_KSU_SUSFS_TRY_UMOUNT \
-          --enable CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT \
-          --enable CONFIG_KSU_SUSFS_SPOOF_UNAME \
-          --enable CONFIG_KSU_SUSFS_ENABLE_LOG \
-          --enable CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
-          --enable CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
-          --enable CONFIG_KSU_SUSFS_OPEN_REDIRECT \
-          --enable CONFIG_KSU_SUSFS_SUS_MAP \
-          --disable CONFIG_KSU_SUSFS_SUS_SU
+          -e CONFIG_KSU_SUSFS \
+          -e CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT \
+          -e CONFIG_KSU_SUSFS_SUS_PATH \
+          -e CONFIG_KSU_SUSFS_SUS_MOUNT \
+          -e CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT \
+          -e CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT \
+          -e CONFIG_KSU_SUSFS_SUS_KSTAT \
+          -d CONFIG_KSU_SUSFS_SUS_OVERLAYFS \
+          -e CONFIG_KSU_SUSFS_TRY_UMOUNT \
+          -e CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT \
+          -e CONFIG_KSU_SUSFS_SPOOF_UNAME \
+          -e CONFIG_KSU_SUSFS_ENABLE_LOG \
+          -e CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+          -e CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
+          -e CONFIG_KSU_SUSFS_OPEN_REDIRECT \
+          -e CONFIG_KSU_SUSFS_SUS_MAP \
+          -d CONFIG_KSU_SUSFS_SUS_SU
 
     - name: Add Oneplus BBR
       shell: bash
@@ -567,11 +567,11 @@ runs:
         cd "$COMMON"
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_TCP_CONG_ADVANCED \
-          --enable CONFIG_TCP_CONG_BBR \
-          --enable CONFIG_TCP_CONG_BBR3 \
-          --enable CONFIG_NET_SCH_FQ \
-          --enable CONFIG_NET_SCH_FQ_CODEL
+          -e CONFIG_TCP_CONG_ADVANCED \
+          -e CONFIG_TCP_CONG_BBR \
+          -e CONFIG_TCP_CONG_BBR3 \
+          -e CONFIG_NET_SCH_FQ \
+          -e CONFIG_NET_SCH_FQ_CODEL
 
         echo "OnePlus BBR added ✅"
         echo "::endgroup::"
@@ -694,77 +694,77 @@ runs:
 
         # Bluetooth configs
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_BT_HCIBTUSB \
-          --enable CONFIG_BT_HCIBTUSB_BCM \
-          --enable CONFIG_BT_HCIBTUSB_RTL \
-          --enable CONFIG_BT_HCIVHCI \
-          --enable CONFIG_BT_HCIBCM203X \
-          --enable CONFIG_BT_HCIBPA10X \
-          --enable CONFIG_BT_HCIBFUSB
+          -e CONFIG_BT_HCIBTUSB \
+          -e CONFIG_BT_HCIBTUSB_BCM \
+          -e CONFIG_BT_HCIBTUSB_RTL \
+          -e CONFIG_BT_HCIVHCI \
+          -e CONFIG_BT_HCIBCM203X \
+          -e CONFIG_BT_HCIBPA10X \
+          -e CONFIG_BT_HCIBFUSB
 
         # Airspy & HackRF
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_USB_AIRSPY \
-          --enable CONFIG_USB_HACKRF
+          -e CONFIG_USB_AIRSPY \
+          -e CONFIG_USB_HACKRF
 
         # CAN
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_CAN \
-          --enable CONFIG_CAN_DEV \
-          --enable CONFIG_CAN_CALC_BITTIMING \
-          --enable CONFIG_CAN_LEDS \
-          --enable CONFIG_CAN_VCAN \
-          --enable CONFIG_CAN_GRCAN \
-          --enable CONFIG_CAN_XILINXCAN
+          -e CONFIG_CAN \
+          -e CONFIG_CAN_DEV \
+          -e CONFIG_CAN_CALC_BITTIMING \
+          -e CONFIG_CAN_LEDS \
+          -e CONFIG_CAN_VCAN \
+          -e CONFIG_CAN_GRCAN \
+          -e CONFIG_CAN_XILINXCAN
 
         # Bosch C_CAN/D_CAN devices
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_CAN_C_CAN \
-          --enable CONFIG_CAN_C_CAN_PLATFORM \
-          --enable CONFIG_CAN_C_CAN_PCI
+          -e CONFIG_CAN_C_CAN \
+          -e CONFIG_CAN_C_CAN_PLATFORM \
+          -e CONFIG_CAN_C_CAN_PCI
 
         # Bosch CC770 and Intel AN82527 devices
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_CAN_CC770 \
-          --enable CONFIG_CAN_CC770_ISA \
-          --enable CONFIG_CAN_CC770_PLATFORM
+          -e CONFIG_CAN_CC770 \
+          -e CONFIG_CAN_CC770_ISA \
+          -e CONFIG_CAN_CC770_PLATFORM
 
         # Bosch M_CAN devices
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_CAN_M_CAN \
-          --enable CONFIG_CAN_M_CAN_PCI \
-          --enable CONFIG_CAN_M_CAN_PLATFORM \
-          --enable CONFIG_CAN_M_CAN_TCAN4X5X
+          -e CONFIG_CAN_M_CAN \
+          -e CONFIG_CAN_M_CAN_PCI \
+          -e CONFIG_CAN_M_CAN_PLATFORM \
+          -e CONFIG_CAN_M_CAN_TCAN4X5X
 
         # CAN SPI interfaces
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_CAN_HI311X \
-          --enable CONFIG_CAN_MCP251X
+          -e CONFIG_CAN_HI311X \
+          -e CONFIG_CAN_MCP251X
 
         # CAN USB interfaces
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_CAN_8DEV_USB \
-          --enable CONFIG_CAN_EMS_USB \
-          --enable CONFIG_CAN_ESD_USB2 \
-          --enable CONFIG_CAN_GS_USB \
-          --enable CONFIG_CAN_KVASER_USB \
-          --enable CONFIG_CAN_PEAK_USB
+          -e CONFIG_CAN_8DEV_USB \
+          -e CONFIG_CAN_EMS_USB \
+          -e CONFIG_CAN_ESD_USB2 \
+          -e CONFIG_CAN_GS_USB \
+          -e CONFIG_CAN_KVASER_USB \
+          -e CONFIG_CAN_PEAK_USB
 
         # CAN - Networking
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_NETLINK_DIAG \
-          --enable CONFIG_VSOCKETS \
-          --enable CONFIG_NET_SCHED \
-          --enable CONFIG_NET_EMATCH_CANID
+          -e CONFIG_NETLINK_DIAG \
+          -e CONFIG_VSOCKETS \
+          -e CONFIG_NET_SCHED \
+          -e CONFIG_NET_EMATCH_CANID
 
         # USB Serial Converter
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_USB_SERIAL \
-          --enable CONFIG_USB_SERIAL_CONSOLE \
-          --enable CONFIG_USB_SERIAL_GENERIC \
-          --enable CONFIG_USB_SERIAL_CH341 \
-          --enable CONFIG_USB_SERIAL_FTDI_SIO \
-          --enable CONFIG_USB_SERIAL_PL2303
+          -e CONFIG_USB_SERIAL \
+          -e CONFIG_USB_SERIAL_CONSOLE \
+          -e CONFIG_USB_SERIAL_GENERIC \
+          -e CONFIG_USB_SERIAL_CH341 \
+          -e CONFIG_USB_SERIAL_FTDI_SIO \
+          -e CONFIG_USB_SERIAL_PL2303
 
         echo "Nethunter configs applied ✅"
         echo "::endgroup::"
@@ -777,7 +777,7 @@ runs:
         cd "$COMMON"
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_LRU_GEN_ENABLED
+          -e CONFIG_LRU_GEN_ENABLED
 
         # Add for Droidspaces support
         echo "Applying patch to enable SYSVIPC without breaking ABI"
@@ -836,16 +836,16 @@ runs:
         esac
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-                  --enable CONFIG_SYSVIPC \
-                  --enable CONFIG_DEVTMPFS \
-                  --enable CONFIG_PID_NS \
-                  --enable CONFIG_POSIX_MQUEUE \
-                  --enable CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
-                  --enable CONFIG_NETFILTER_XT_SET \
-                  --enable CONFIG_NETFILTER_XT_TARGET_REJECT \
-                  --enable CONFIG_NETFILTER_XT_TARGET_LOG \
-                  --enable CONFIG_NETFILTER_XT_MATCH_RECENT \
-                  --enable CONFIG_USER_NS
+                  -e CONFIG_SYSVIPC \
+                  -e CONFIG_DEVTMPFS \
+                  -e CONFIG_PID_NS \
+                  -e CONFIG_POSIX_MQUEUE \
+                  -e CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
+                  -e CONFIG_NETFILTER_XT_SET \
+                  -e CONFIG_NETFILTER_XT_TARGET_REJECT \
+                  -e CONFIG_NETFILTER_XT_TARGET_LOG \
+                  -e CONFIG_NETFILTER_XT_MATCH_RECENT \
+                  -e CONFIG_USER_NS
 
         echo "Other configs added ✅"
         echo "::endgroup::"
@@ -858,9 +858,9 @@ runs:
         cd "$COMMON"
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_IP_NF_TARGET_TTL \
-          --enable CONFIG_IP6_NF_TARGET_HL \
-          --enable CONFIG_IP6_NF_MATCH_HL
+          -e CONFIG_IP_NF_TARGET_TTL \
+          -e CONFIG_IP6_NF_TARGET_HL \
+          -e CONFIG_IP6_NF_MATCH_HL
 
         echo "TTL support added ✅"
         echo "::endgroup::"
@@ -873,24 +873,24 @@ runs:
         cd "$COMMON"
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_IP_SET \
+          -e CONFIG_IP_SET \
           --set-val CONFIG_IP_SET_MAX 65534 \
-          --enable CONFIG_IP_SET_BITMAP_IP \
-          --enable CONFIG_IP_SET_BITMAP_IPMAC \
-          --enable CONFIG_IP_SET_BITMAP_PORT \
-          --enable CONFIG_IP_SET_HASH_IP \
-          --enable CONFIG_IP_SET_HASH_IPMARK \
-          --enable CONFIG_IP_SET_HASH_IPPORT \
-          --enable CONFIG_IP_SET_HASH_IPPORTIP \
-          --enable CONFIG_IP_SET_HASH_IPPORTNET \
-          --enable CONFIG_IP_SET_HASH_IPMAC \
-          --enable CONFIG_IP_SET_HASH_MAC \
-          --enable CONFIG_IP_SET_HASH_NETPORTNET \
-          --enable CONFIG_IP_SET_HASH_NET \
-          --enable CONFIG_IP_SET_HASH_NETNET \
-          --enable CONFIG_IP_SET_HASH_NETPORT \
-          --enable CONFIG_IP_SET_HASH_NETIFACE \
-          --enable CONFIG_IP_SET_LIST_SET
+          -e CONFIG_IP_SET_BITMAP_IP \
+          -e CONFIG_IP_SET_BITMAP_IPMAC \
+          -e CONFIG_IP_SET_BITMAP_PORT \
+          -e CONFIG_IP_SET_HASH_IP \
+          -e CONFIG_IP_SET_HASH_IPMARK \
+          -e CONFIG_IP_SET_HASH_IPPORT \
+          -e CONFIG_IP_SET_HASH_IPPORTIP \
+          -e CONFIG_IP_SET_HASH_IPPORTNET \
+          -e CONFIG_IP_SET_HASH_IPMAC \
+          -e CONFIG_IP_SET_HASH_MAC \
+          -e CONFIG_IP_SET_HASH_NETPORTNET \
+          -e CONFIG_IP_SET_HASH_NET \
+          -e CONFIG_IP_SET_HASH_NETNET \
+          -e CONFIG_IP_SET_HASH_NETPORT \
+          -e CONFIG_IP_SET_HASH_NETIFACE \
+          -e CONFIG_IP_SET_LIST_SET
 
         echo "IP  SET support added ✅"
         echo "::endgroup::"
@@ -903,11 +903,11 @@ runs:
         cd "$COMMON"
 
         ./scripts/config --file arch/arm64/configs/kernel.config \
-          --enable CONFIG_NET_SCH_FQ \
-          --enable CONFIG_NET_SCH_FQ_CODEL \
-          --enable CONFIG_NET_SCH_CAKE \
-          --enable CONFIG_NET_SCH_PIE \
-          --enable CONFIG_NET_SCH_FQ_PIE
+          -e CONFIG_NET_SCH_FQ \
+          -e CONFIG_NET_SCH_FQ_CODEL \
+          -e CONFIG_NET_SCH_CAKE \
+          -e CONFIG_NET_SCH_PIE \
+          -e CONFIG_NET_SCH_FQ_PIE
 
         echo "Traffic schedulers (qdisc) enabled ✅"
         echo "::endgroup::"
@@ -921,23 +921,23 @@ runs:
 
         if [[ "${{ inputs.lto }}" = "Thin" ]]; then
           ./scripts/config --file arch/arm64/configs/kernel.config \
-            --enable CONFIG_LTO_CLANG_THIN \
-            --enable CONFIG_LTO_CLANG
+            -e CONFIG_LTO_CLANG_THIN \
+            -e CONFIG_LTO_CLANG
         else
           ./scripts/config --file arch/arm64/configs/kernel.config \
-            --enable CONFIG_LTO_CLANG_FULL \
-            --enable CONFIG_LTO_CLANG
+            -e CONFIG_LTO_CLANG_FULL \
+            -e CONFIG_LTO_CLANG
         fi
 
         # Optimize level config and flags
         if [[ "${{ inputs.optimize_level }}" = "O3" ]]; then
           ./scripts/config --file arch/arm64/configs/kernel.config \
-            --disable CC_OPTIMIZE_FOR_PERFORMANCE \
-            --enable CC_OPTIMIZE_FOR_PERFORMANCE_O3
+            -d CC_OPTIMIZE_FOR_PERFORMANCE \
+            -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
         else
           ./scripts/config --file arch/arm64/configs/kernel.config \
-           --enable CC_OPTIMIZE_FOR_PERFORMANCE \
-           --disable CC_OPTIMIZE_FOR_PERFORMANCE_O3
+           -e CC_OPTIMIZE_FOR_PERFORMANCE \
+           -d CC_OPTIMIZE_FOR_PERFORMANCE_O3
         fi
         echo "Build configs applied ✅"
         echo "::endgroup::"
@@ -1130,12 +1130,12 @@ runs:
             : > "$COMMON/.scmversion"
             ./scripts/config --file "$OUT/.config" \
               --set-str LOCALVERSION "${CUSTOM_LOCALVERSION}" \
-              --disable LOCALVERSION_AUTO
+              -d LOCALVERSION_AUTO
             sed -i 's/scm_version="$(scm_version --short)"/scm_version=""/' scripts/setlocalversion
             echo "::note::Custom branding applied to config"
           else
             ./scripts/config --file "$OUT/.config" \
-              --enable LOCALVERSION_AUTO
+              -e LOCALVERSION_AUTO
           fi
 
           echo "kernel_release=$(make "${MAKE_FLAGS[@]}" O="$OUT" -s kernelrelease)" >> "$GITHUB_ENV"

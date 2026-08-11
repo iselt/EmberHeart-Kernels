@@ -204,47 +204,47 @@ runs:
         
         # Realtek drivers
         ./scripts/config --file arch/arm64/configs/modules.config \
-          --enable CONFIG_WLAN_VENDOR_REALTEK
+          -e CONFIG_WLAN_VENDOR_REALTEK
 
         # ATH drivers
         ./scripts/config --file arch/arm64/configs/modules.config \
-          --enable CONFIG_WLAN_VENDOR_ATH \
-          --module CONFIG_ATH_COMMON \
-          --module CONFIG_ATH9K \
-          --module CONFIG_ATH9K_HW \
-          --module CONFIG_ATH9K_HTC \
-          --module CONFIG_ATH9K_COMMON \
-          --module CONFIG_ATH10K \
-          --module CONFIG_ATH10K_USB \
-          --module CONFIG_ATH11K
+          -e CONFIG_WLAN_VENDOR_ATH \
+          -m CONFIG_ATH_COMMON \
+          -m CONFIG_ATH9K \
+          -m CONFIG_ATH9K_HW \
+          -m CONFIG_ATH9K_HTC \
+          -m CONFIG_ATH9K_COMMON \
+          -m CONFIG_ATH10K \
+          -m CONFIG_ATH10K_USB \
+          -m CONFIG_ATH11K
 
         # Mediatek drivers
         ./scripts/config --file arch/arm64/configs/modules.config -k \
-          --enable CONFIG_WLAN_VENDOR_MEDIATEK \
-          --module CONFIG_MT7601U \
-          --module CONFIG_MT76_CORE \
-          --module CONFIG_MT76_USB \
-          --module CONFIG_MT76x02_LIB \
-          --module CONFIG_MT76x02_USB \
-          --module CONFIG_MT76_CONNAC_LIB \
-          --module CONFIG_MT7603E \
-          --module CONFIG_MT76x2E \
-          --module CONFIG_MT76x2U \
-          --module CONFIG_MT76x0U \
-          --module CONFIG_MT76x0E \
-          --module CONFIG_MT7615_COMMON \
-          --module CONFIG_MT7615E \
-          --module CONFIG_MT7663_USB_SDIO_COMMON \
-          --module CONFIG_MT7663U \
-          --module CONFIG_MT7663S \
-          --module CONFIG_MT7915E \
-          --module CONFIG_MT7921E
+          -e CONFIG_WLAN_VENDOR_MEDIATEK \
+          -m CONFIG_MT7601U \
+          -m CONFIG_MT76_CORE \
+          -m CONFIG_MT76_USB \
+          -m CONFIG_MT76x02_LIB \
+          -m CONFIG_MT76x02_USB \
+          -m CONFIG_MT76_CONNAC_LIB \
+          -m CONFIG_MT7603E \
+          -m CONFIG_MT76x2E \
+          -m CONFIG_MT76x2U \
+          -m CONFIG_MT76x0U \
+          -m CONFIG_MT76x0E \
+          -m CONFIG_MT7615_COMMON \
+          -m CONFIG_MT7615E \
+          -m CONFIG_MT7663_USB_SDIO_COMMON \
+          -m CONFIG_MT7663U \
+          -m CONFIG_MT7663S \
+          -m CONFIG_MT7915E \
+          -m CONFIG_MT7921E
 
         # Other configs
         ./scripts/config --file arch/arm64/configs/modules.config \
-          --enable CONFIG_MAC80211_LEDS \
-          --enable CONFIG_MAC80211_RC_MINSTREL \
-          --module CONFIG_CAN_SLCAN
+          -e CONFIG_MAC80211_LEDS \
+          -e CONFIG_MAC80211_RC_MINSTREL \
+          -m CONFIG_CAN_SLCAN
 
     - name: Add my kernel patches to msm kernel
       if: env.SOC == 'kalama' && !contains(env.MANIFEST_NAME, 'CUSTOM')
@@ -297,23 +297,23 @@ runs:
 
         if [[ "${{ inputs.lto }}" = "Thin" ]]; then
           ./scripts/config --file arch/arm64/configs/modules.config \
-            --enable CONFIG_LTO_CLANG_THIN \
-            --enable CONFIG_LTO_CLANG
+            -e CONFIG_LTO_CLANG_THIN \
+            -e CONFIG_LTO_CLANG
         else
           ./scripts/config --file arch/arm64/configs/modules.config \
-            --enable CONFIG_LTO_CLANG_FULL \
-            --enable CONFIG_LTO_CLANG
+            -e CONFIG_LTO_CLANG_FULL \
+            -e CONFIG_LTO_CLANG
         fi
 
         # Optimize level config and flags
         if [[ "${{ inputs.optimize_level }}" = "O3" ]]; then
           ./scripts/config --file arch/arm64/configs/modules.config \
-            --disable CC_OPTIMIZE_FOR_PERFORMANCE \
-            --enable CC_OPTIMIZE_FOR_PERFORMANCE_O3
+            -d CC_OPTIMIZE_FOR_PERFORMANCE \
+            -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
         else
           ./scripts/config --file arch/arm64/configs/modules.config \
-           --enable CC_OPTIMIZE_FOR_PERFORMANCE \
-           --disable CC_OPTIMIZE_FOR_PERFORMANCE_O3
+           -e CC_OPTIMIZE_FOR_PERFORMANCE \
+           -d CC_OPTIMIZE_FOR_PERFORMANCE_O3
         fi
         echo "Build configs applied"
         echo "::endgroup::"
