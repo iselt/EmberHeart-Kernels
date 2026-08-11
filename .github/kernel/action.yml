@@ -1479,7 +1479,7 @@ runs:
         [ -n "$(tail -c1 "${system_dlkm_props_file}")" ] && printf "\n" >> "${system_dlkm_props_file}"
 
         if [[ -f "${PREBUILTS}/system_dlkm.selinux.fc.txt" ]]; then
-          echo "selinux_fc=${PREBUILTS}/system_dlkm.selinux.fc.txt" >> ${system_dlkm_props_file}
+          echo "system_dlkm_selinux_fc=${PREBUILTS}/system_dlkm.selinux.fc.txt" >> ${system_dlkm_props_file}
         fi
 
         if [[ -f "${PREBUILTS}/system_dlkm.fs_config.txt" ]]; then
