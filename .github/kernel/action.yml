@@ -1507,6 +1507,11 @@ runs:
             --partition_name system_dlkm \
             --image "${OUT}/system_dlkm.img"
 
+        echo -e "::debug::system_dlkm fc:"
+        sudo mkdir -p /mnt/system_dlkm
+        sudo mount -o loop,ro "${OUT}/system_dlkm.img" /mnt/system_dlkm
+        find /mnt/system_dlkm -exec ls -Zd {} + | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.fc" || true
+
         SYSTEM_DLKM_SHA256=$(sha256sum "${OUT}/system_dlkm.img" | cut -d' ' -f1)
         echo "system_dlkm_sha256=${SYSTEM_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
 
