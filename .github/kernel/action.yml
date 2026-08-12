@@ -784,14 +784,14 @@ runs:
         case "$BRANCH" in
           oneplus/sm8850|oneplus/sm8845)
             if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_a16-6.12.patch" >/dev/null 2>&1; then
-              echo "[INFO] Patch already applied. Skipping."
+              echo "::note::Patch already applied. Skipping."
             else
               patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_a16-6.12.patch"
             fi
             ;;
           oneplus/sm8550|oneplus/sm7550)
             if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_1_2_3.patch" >/dev/null 2>&1; then
-              echo "[INFO] Patch already applied. Skipping."
+              echo "::note::Patch already applied. Skipping."
             else
               patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_1_2_3.patch"
             fi
@@ -799,20 +799,20 @@ runs:
           oneplus/sm8450|oneplus/sm8475|oneplus/mt6895|oneplus/mt6983|oneplus/mt6789)
             if [[ "$ANDROID_RELEASE" = "android12" ]] && [[ "$KERNEL_VER" = "5.10" ]]; then
               if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_bypass_a16-6.12_below.patch" >/dev/null 2>&1; then
-                echo "[INFO] Patch already applied. Skipping."
+                echo "::note::Patch already applied. Skipping."
               else
                 patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_bypass_a16-6.12_below.patch"
               fi
 
               if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_abi_padding_for_posix_mqueue.patch" >/dev/null 2>&1; then
-                echo "[INFO] Patch already applied. Skipping."
+                echo "::note::Patch already applied. Skipping."
               else
                 patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_abi_padding_for_posix_mqueue.patch"
               fi
             else
 
               if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch" >/dev/null 2>&1; then
-                echo "[INFO] Patch already applied. Skipping."
+                echo "::note::Patch already applied. Skipping."
               else
                 patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"
               fi
@@ -821,14 +821,14 @@ runs:
             ;;
           los/sm8550)
             if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_3_4_5.patch" >/dev/null 2>&1; then
-                echo "[INFO] Patch already applied. Skipping."
+                echo "::note::Patch already applied. Skipping."
             else
                 patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_3_4_5.patch"
             fi
             ;;
           *)
             if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch" >/dev/null 2>&1; then
-              echo "[INFO] Patch already applied. Skipping."
+              echo "::note::Patch already applied. Skipping."
             else
               patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"
             fi
@@ -953,10 +953,10 @@ runs:
         if [[ -n "$INPUT_UNAME" ]]; then
           CUSTOM_LOCALVERSION="-${ANDROID_RELEASE}-${{ inputs.kernel_uname }}"
           echo "CUSTOM_LOCALVERSION=$CUSTOM_LOCALVERSION" >> "$GITHUB_ENV"
-          echo "[INFO] Using kernel version: ${KERNEL_FULL_VER}${CUSTOM_LOCALVERSION}"
+          echo "::note::Using kernel version: ${KERNEL_FULL_VER}${CUSTOM_LOCALVERSION}"
         else
           SCM=$(./scripts/setlocalversion 2>/dev/null || echo "-g$(git rev-parse --short HEAD)") || echo "ERROR"
-          echo "[INFO] Using default kernel version: ${KERNEL_FULL_VER}${SCM}"
+          echo "::note::Using default kernel version: ${KERNEL_FULL_VER}${SCM}"
         fi
 
         echo "Kernel branding applied ✅"
@@ -1024,6 +1024,7 @@ runs:
         #                            How to use : define SYSTEM_DLKM_PROPS_FILE with absolute path of the props file
         #                            Note :  If system_dlkm.prop is present in the ${PREBUILTS} directory then it will get the highest priority
         if [[ -f "${BUILD_CONFIG}" ]]; then
+          echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
             . ${BUILD_CONFIG}
           set +a
@@ -1105,15 +1106,18 @@ runs:
         declare -a MAKE_FLAGS_EXTRA=()
 
         (
+          set -x
           cd "${KERNEL_DIR}"
 
           if [[ -n "${PRE_DEFCONFIG_CMDS:-}" ]]; then
+            echo -e "::debug::Evaluating PRE_DEFCONFIG_CMDS inside $(pwd)"
             eval "${PRE_DEFCONFIG_CMDS}"
           fi
 
           make "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" "${CONFIGS[@]}"
 
           if [[ -n "${POST_DEFCONFIG_CMDS:-}" ]]; then
+            echo -e "::debug::Evaluating POST_DEFCONFIG_CMDS inside $(pwd)"
             eval "${POST_DEFCONFIG_CMDS}"
           fi
 
@@ -1128,7 +1132,7 @@ runs:
               --set-str LOCALVERSION "${CUSTOM_LOCALVERSION}" \
               --disable LOCALVERSION_AUTO
             sed -i 's/scm_version="$(scm_version --short)"/scm_version=""/' scripts/setlocalversion
-            echo "[INFO] Custom branding applied to config"
+            echo "::note::Custom branding applied to config"
           else
             ./scripts/config --file "$OUT/.config" \
               --enable LOCALVERSION_AUTO
@@ -1149,6 +1153,8 @@ runs:
             MAKE_GOALS=${MAKE_GOALS:-"Image"}
             make -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" Image
           fi
+
+          set +x
 
           echo "duration=$SECONDS" >> "$GITHUB_ENV"
         )
@@ -1306,6 +1312,7 @@ runs:
         fi
 
         if [[ -f "${BUILD_CONFIG}" ]]; then
+          echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
             . ${BUILD_CONFIG}
           set +a
@@ -1318,11 +1325,17 @@ runs:
         fi
 
         if [ -n "${PRE_BOOT_MKBOOTIMG_CMDS:-}" ]; then
+          echo -e "::debug::Evaluating PRE_BOOT_MKBOOTIMG_CMDS inside $(pwd)"
+          set -x
           eval "${PRE_BOOT_MKBOOTIMG_CMDS}"
+          set +x
         fi
 
         if [ -n "${BOOT_EXTRA_CMDS:-}" ]; then
+          echo -e "::debug::Evaluating BOOT_EXTRA_CMDS inside $(pwd)"
+          set -x
           eval "${BOOT_EXTRA_CMDS}"
+          set +x
         fi
 
         # Allow build.config files to override generic v4 no ramdisk mkbootimg flags
@@ -1338,16 +1351,24 @@ runs:
         fi
 
         echo "Creating boot image"
+        set -x
         "$MKBOOTIMG" "${BOOT_MKBOOTIMG_ARGS[@]}"
+        set +x
         
         if [ -n "${POST_BOOT_MKBOOTIMG_CMDS:-}" ]; then
+          echo -e "::debug::Evaluating POST_BOOT_MKBOOTIMG_CMDS inside $(pwd)"
+          set -x
           eval "${POST_BOOT_MKBOOTIMG_CMDS}"
+          set +x
         fi
 
         # Allow build.config to sign boot images using custom algo and keys
         if [[ -n "${AVB_SIGN_BOOT_CMDS:-}" ]]; then
           echo "Signing boot image"
+          echo -e "::debug::Evaluating AVB_SIGN_BOOT_CMDS inside $(pwd)"
+          set -x
           eval "${AVB_SIGN_BOOT_CMDS}"
+          set +x
         elif [[ "${AVB_SIGN_BOOT_IMG:-1}" == "1" ]]; then
           # Allow build.config to override boot image signing
           # Users have three choices : - sign manually using their own keys
@@ -1355,6 +1376,7 @@ runs:
           #                            - don't sign at all
           echo "Signing boot image"
 
+          set -x
           # Allow build.config to ovveride default signing algorithm and boot signing key
           AVB_SIGN_BOOT_ALGO=${AVB_SIGN_BOOT_ALGO:-SHA256_RSA4096}
           AVB_SIGN_BOOT_KEY=${AVB_SIGN_BOOT_KEY:-${KERNEL_PLATFORM}/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem}
@@ -1365,6 +1387,7 @@ runs:
             --image "${OUT}/boot.img" \
             --algorithm "${AVB_SIGN_BOOT_ALGO}" \
             --key "${AVB_SIGN_BOOT_KEY}"
+          set +x
         fi
 
         cp "$OUT/boot.img" "$ARTIFACTS_DIR"
@@ -1392,6 +1415,7 @@ runs:
         fi
 
         if [[ -f "${BUILD_CONFIG}" ]]; then
+          echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
             . ${BUILD_CONFIG}
           set +a
@@ -1424,7 +1448,10 @@ runs:
             touch "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_files"
           fi
         else
+          echo -e "::debug::Evaluating SYSTEM_DLKM_EXTRA_FILES inside $(pwd)"
+          set -x
           eval "${SYSTEM_DLKM_EXTRA_FILES}"
+          set +x
         fi
 
         # Create temporary prop file for system_dlkm image
@@ -1432,7 +1459,7 @@ runs:
 
         # Allow build.config to introduce custom system_dlkm props file
         if [[ -f "${PREBUILTS}/system_dlkm.prop" ]]; then
-          echo -e "::debug:: Using custom system_dlkm prop file with props:\n$(cat "${PREBUILTS}/system_dlkm.prop")"
+          echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${PREBUILTS}/system_dlkm.prop")"
           cat "${PREBUILTS}/system_dlkm.prop" >> ${system_dlkm_props_file}
         else
           if [[ ! -v SYSTEM_DLKM_PROPS_FILE ]]; then
@@ -1443,7 +1470,7 @@ runs:
             # echo -e "partition_name=system_dlkm\n" >> ${system_dlkm_props_file}
             # echo -e "mount_point=system_dlkm\n" >> ${system_dlkm_props_file}
           else
-            echo -e "::debug:: Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
+            echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
             cat "${SYSTEM_DLKM_PROPS_FILE}" >> ${system_dlkm_props_file}
           fi
         fi
@@ -1461,15 +1488,21 @@ runs:
 
         # Extra cmds for device specific needs
         if [[ -v SYSTEM_DLKM_EXTRA_CMDS ]]; then
+          echo -e "::debug::Evaluating SYSTEM_DLKM_EXTRA_CMDS inside $(pwd)"
+          set -x
           eval "${SYSTEM_DLKM_EXTRA_CMDS}"
+          set +x
         fi
 
-        echo -e "::debug:: system_dlkm staging tree :\n$(tree "${SYSTEM_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.tree"
+        echo -e "::debug::system_dlkm staging tree :\n$(tree "${SYSTEM_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.tree"
+        echo -e "::debug::Final system_dlkm props file contents :\n$(cat "${system_dlkm_props_file}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.prop"
 
-        echo "::info:: Building system_dlkm Image"
+        echo "::notice::Building system_dlkm Image"
+        set -x
         build_image "${SYSTEM_DLKM_STAGING_DIR}" "${system_dlkm_props_file}" "${OUT}/system_dlkm.img" /dev/null
+        set +x
 
-        echo "::info:: Adding hashtree footer using avbtool"
+        echo "::notice::Adding hashtree footer using avbtool"
         avbtool add_hashtree_footer \
             --partition_name system_dlkm \
             --image "${OUT}/system_dlkm.img"
@@ -1573,10 +1606,10 @@ runs:
           ccache --evict-older-than "${ccache_delta}s"
         fi
 
-        echo "[WARNING] Deleting old LTO cache..."
+        echo "::warning::Deleting old LTO cache..."
         gh cache delete LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
-        echo "[WARNING] Deleting old ccache..."
+        echo "::warning::Deleting old ccache..."
         gh cache delete ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
     - name: Purge old mixed artifacts

@@ -401,6 +401,7 @@ runs:
         #                            How to use : define VENDOR_DLKM_PROPS_FILE with absolute path of the props file
         #                            Note :  If vendor_dlkm.prop is present in the ${PREBUILTS} directory then it will get the highest priority
         if [[ -f "${BUILD_CONFIG}" ]]; then
+          echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
             . ${BUILD_CONFIG}
           set +a
@@ -490,9 +491,11 @@ runs:
         declare -a MAKE_FLAGS_EXTRA=()
 
         (
+          set -x
           cd "${KERNEL_DIR}"
 
           if [[ -n "${PRE_DEFCONFIG_CMDS:-}" ]]; then
+            echo -e "::debug::Evaluating PRE_DEFCONFIG_CMDS inside $(pwd)"
             eval "${PRE_DEFCONFIG_CMDS}"
           fi
 
@@ -500,6 +503,7 @@ runs:
           make "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" "${CONFIGS[@]}"
 
           if [[ -n "${POST_DEFCONFIG_CMDS:-}" ]]; then
+            echo -e "::debug::Evaluating POST_DEFCONFIG_CMDS inside $(pwd)"
             eval "${POST_DEFCONFIG_CMDS}"
           fi
 
@@ -516,6 +520,8 @@ runs:
 
           make -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
           make -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O="$OUT" INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH" DTB_TYPES="$DTB_TYPES" dtbs_install
+
+          set +x
         )
 
         echo "duration=$SECONDS" >> "$GITHUB_ENV"
@@ -551,14 +557,16 @@ runs:
           SECONDS=0
 
           # OPLUS ext modules
+          set -x
           for MODULE in "${EXT_OPLUS[@]}"; do
               make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
               make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
           done
+          set +x
 
           echo "duration_oplus_ext=$SECONDS" >> "$GITHUB_ENV"
         else
-          echo "[INFO] OPLUS modules not found. skipping"
+          echo "::note::OPLUS modules not found. skipping"
           echo "duration_oplus_ext=0" >> "$GITHUB_ENV"
         fi
 
@@ -603,9 +611,10 @@ runs:
         echo "Compiling vendor modules (qcom)"
         SECONDS=0
 
+        set -x
         for MODULE in "${EXT_MODULES[@]}"; do
             if [[ ! -d "$MODULE" ]]; then
-              echo "[WARNING] The following module path does not exist : $MODULE"
+              echo "::warning::The following module path does not exist : $MODULE"
               continue
             fi
 
@@ -618,12 +627,14 @@ runs:
         done
 
         find "${INSTALL_MOD_PATH}" -name "${QCACLD_DEV_NAME}.ko" -execdir mv -i -- "{}" "qca_cld3_${QCACLD_DEV_NAME}.ko" \;
+        set +x
 
         echo "duration_qcom_ext=$SECONDS" >> "$GITHUB_ENV"
 
         echo "Compiling vendor devicetree overlays"
         SECONDS=0
 
+        set -x
         for PROJECT in $(cd "$CONFIG" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
           if [[ ! -e "../$PROJECT/Makefile" ]]; then
             echo "$PROJECT does not have expected build configuration files, skipping..."
@@ -631,6 +642,7 @@ runs:
           fi
           make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
         done
+        set +x
 
         echo "duration_dtb_ext=$SECONDS" >> "$GITHUB_ENV"
 
@@ -684,6 +696,7 @@ runs:
         fi
 
         if [[ -f "${BUILD_CONFIG}" ]]; then
+          echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
             . ${BUILD_CONFIG}
           set +a
@@ -709,7 +722,10 @@ runs:
 
         # Extra cmds for device specific needs
         if [[ -v SYSTEM_DLKM_EXTRA_CMDS ]]; then
+          echo -e "::debug::Evaluating SYSTEM_DLKM_EXTRA_CMDS inside $(pwd)"
+          set -x
           eval "${SYSTEM_DLKM_EXTRA_CMDS}"
+          set +x
         fi
 
         # Add other files found in stock system_dlkm
@@ -721,7 +737,10 @@ runs:
             touch "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_files"
           fi
         else
+          echo -e "::debug::Evaluating SYSTEM_DLKM_EXTRA_FILES inside $(pwd)"
+          set -x
           eval "${SYSTEM_DLKM_EXTRA_FILES}"
+          set +x
         fi
 
         # Create temporary prop file for system_dlkm image
@@ -729,7 +748,7 @@ runs:
 
         # Allow build.config to introduce custom system_dlkm props file
         if [[ -f "${PREBUILTS}/system_dlkm.prop" ]]; then
-          echo -e "::debug:: Using custom system_dlkm prop file with props:\n$(cat "${PREBUILTS}/system_dlkm.prop")"
+          echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${PREBUILTS}/system_dlkm.prop")"
           cat "${PREBUILTS}/system_dlkm.prop" >> ${system_dlkm_props_file}
         else
           if [[ ! -v SYSTEM_DLKM_PROPS_FILE ]]; then
@@ -740,7 +759,7 @@ runs:
             # echo -e "partition_name=system_dlkm\n" >> ${system_dlkm_props_file}
             # echo -e "mount_point=system_dlkm\n" >> ${system_dlkm_props_file}
           else
-            echo -e "::debug:: Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
+            echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
             cat "${SYSTEM_DLKM_PROPS_FILE}" >> ${system_dlkm_props_file}
           fi
         fi
@@ -756,12 +775,15 @@ runs:
           echo "fs_config=${PREBUILTS}/system_dlkm.fs_config.txt" >> ${system_dlkm_props_file}
         fi
 
-        echo -e "::debug:: system_dlkm staging tree :\n$(tree "${SYSTEM_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.tree"
+        echo -e "::debug::system_dlkm staging tree :\n$(tree "${SYSTEM_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.tree"
+        echo -e "::debug::Final system_dlkm props file contents :\n$(cat "${system_dlkm_props_file}")" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.prop"
 
-        echo "::info:: Building system_dlkm Image"
+        echo "::note:: Building system_dlkm Image"
+        set -x
         build_image "${SYSTEM_DLKM_STAGING_DIR}" "${system_dlkm_props_file}" "${OUT}/system_dlkm.img" /dev/null
+        set +x
 
-        echo "::info:: Adding hashtree footer using avbtool"
+        echo "::note:: Adding hashtree footer using avbtool"
         avbtool add_hashtree_footer \
             --partition_name system_dlkm \
             --image "${OUT}/system_dlkm.img"
@@ -802,6 +824,7 @@ runs:
         fi
 
         if [[ -f "${BUILD_CONFIG}" ]]; then
+          echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
             . ${BUILD_CONFIG}
           set +a
@@ -857,7 +880,7 @@ runs:
 
         # Apply depmod and copy required artifacts
         cd "${DEPMOD_DIR}"
-        echo "::info:: Performing depmod"
+        echo "::note:: Performing depmod"
         if [[ "${BUILD_TYPE}" == "Monolithic Build" ]]; then
           # During Monolithic Builds we don't perform mixed build so there's no KBUILD_MIXED_TREE
           # we use System.map from OUT dir instead
@@ -912,12 +935,18 @@ runs:
         fi
        
         if [ -n "${PRE_VENDOR_BOOT_MKBOOTIMG_CMDS:-}" ]; then
+          echo -e "::debug::Evaluating PRE_VENDOR_BOOT_MKBOOTIMG_CMDS inside $(pwd)"
+          set -x
           eval "${PRE_VENDOR_BOOT_MKBOOTIMG_CMDS}"
+          set +x
         fi
 
         # Extra cmds for device specific needs
         if [ -n "${VENDOR_BOOT_EXTRA_CMDS:-}" ]; then
+          echo -e "::debug::Evaluating VENDOR_BOOT_EXTRA_CMDS inside $(pwd)"
+          set -x
           eval "${VENDOR_BOOT_EXTRA_CMDS}"
+          set +x
         fi
 
         # Allow build.config files to override generic v4 no ramdisk mkbootimg flags
@@ -933,19 +962,27 @@ runs:
           )
         fi
 
-        echo -e "::debug:: vendor_boot staging tree :\n$(tree "${VENDOR_BOOT_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_boot.tree"
+        echo -e "::debug::vendor_boot staging tree :\n$(tree "${VENDOR_BOOT_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_boot.tree"
 
-        echo "::info:: Creating vendor boot image"
+        echo "::note:: Creating vendor boot image"
+        set -x
         "${MKBOOTIMG}" "${VENDOR_BOOT_MKBOOTIMG_ARGS[@]}"
+        set +x
 
         if [ -n "${POST_VENDOR_BOOT_MKBOOTIMG_CMDS:-}" ]; then
+          echo -e "::debug::Evaluating POST_VENDOR_BOOT_MKBOOTIMG_CMDS inside $(pwd)"
+          set -x
           eval "${POST_VENDOR_BOOT_MKBOOTIMG_CMDS}"
+          set +x
         fi
 
         # Allow build.config to sign vendor_boot images using custom algo and keys
         if [[ -n "${AVB_SIGN_VENDOR_BOOT_CMDS:-}" ]]; then
           echo "Signing vendor_boot image"
+          echo -e "::debug::Evaluating AVB_SIGN_VENDOR_BOOT_CMDS inside $(pwd)"
+          set -x
           eval "${AVB_SIGN_VENDOR_BOOT_CMDS}"
+          set +x
         elif [[ "${AVB_SIGN_VENDOR_BOOT_IMG:-1}" == "1" ]]; then
           # Allow build.config to override vendor_boot image signing
           # Users have three choices : - sign manually using their own keys
@@ -954,6 +991,7 @@ runs:
           echo "Signing vendor_boot image"
 
           # Allow build.config to ovveride default signing algorithm and vendor_boot signing key
+          set -x
           AVB_SIGN_VENDOR_BOOT_ALGO=${AVB_SIGN_VENDOR_BOOT_ALGO:-SHA256_RSA4096}
           AVB_SIGN_VENDOR_BOOT_KEY=${AVB_SIGN_VENDOR_BOOT_KEY:-${KERNEL_PLATFORM}/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem}
 
@@ -963,6 +1001,7 @@ runs:
             --image "${OUT}/vendor_boot.img" \
             --algorithm "${AVB_SIGN_VENDOR_BOOT_ALGO}" \
             --key "${AVB_SIGN_VENDOR_BOOT_KEY}"
+          set +x
         fi
 
         VENDOR_BOOT_SHA256=$(sha256sum "${OUT}/vendor_boot.img" | cut -d' ' -f1)
@@ -1001,6 +1040,7 @@ runs:
         fi
 
         if [[ -f "${BUILD_CONFIG}" ]]; then
+          echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
             . ${BUILD_CONFIG}
           set +a
@@ -1069,7 +1109,7 @@ runs:
 
         # Apply depmod and copy required artifacts
         cd "${DEPMOD_DIR}"
-        echo "::info:: Performing depmod"
+        echo "::note:: Performing depmod"
         if [[ "${BUILD_TYPE}" == "Monolithic Build" ]]; then
           # During Monolithic Builds we don't perform mixed build so there's no KBUILD_MIXED_TREE
           # we use System.map from OUT dir instead
@@ -1095,7 +1135,10 @@ runs:
             touch "${VENDOR_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${VENDOR_DLKM_STAGING_DIR}/etc/fs_config_files"
           fi
         else
+          echo -e "::debug::Evaluating VENDOR_DLKM_EXTRA_FILES inside $(pwd)"
+          set -x
           eval "${VENDOR_DLKM_EXTRA_FILES}"
+          set +x
         fi
 
         cd "${OUT}"
@@ -1104,7 +1147,7 @@ runs:
 
         # Allow build.config to introduce custom vendor_dlkm props file
         if [[ -f "${PREBUILTS}/vendor_dlkm.prop" ]]; then
-          echo -e "::debug:: Using custom vendor_dlkm prop file with props:\n$(cat "${PREBUILTS}/vendor_dlkm.prop")"
+          echo -e "::debug::Using custom vendor_dlkm prop file with props:\n$(cat "${PREBUILTS}/vendor_dlkm.prop")"
           cat "${PREBUILTS}/vendor_dlkm.prop" >> ${vendor_dlkm_props_file}
         else
           if [[ ! -v VENDOR_DLKM_PROPS_FILE ]]; then
@@ -1114,7 +1157,7 @@ runs:
             echo "ext4_share_dup_blocks=true" >> ${vendor_dlkm_props_file}
             # echo -e "mount_point=vendor_dlkm\n" >> ${vendor_dlkm_props_file}
           else
-            echo -e "::debug:: Using custom vendor_dlkm prop file with props:\n$(cat "${VENDOR_DLKM_PROPS_FILE}")"
+            echo -e "::debug::Using custom vendor_dlkm prop file with props:\n$(cat "${VENDOR_DLKM_PROPS_FILE}")"
             cat "${VENDOR_DLKM_PROPS_FILE}" >> ${vendor_dlkm_props_file}
           fi
         fi
@@ -1132,13 +1175,19 @@ runs:
 
         # Extra cmds for device specific needs
         if [[ -v VENDOR_DLKM_EXTRA_CMDS ]]; then
+          echo -e "::debug::Evaluating VENDOR_DLKM_EXTRA_CMDS inside $(pwd)"
+          set -x
           eval "${VENDOR_DLKM_EXTRA_CMDS}"
+          set +x
         fi
 
-        echo -e "::debug:: vendor_dlkm staging tree :\n$(tree "${VENDOR_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_dlkm.tree"
+        echo -e "::debug::vendor_dlkm staging tree :\n$(tree "${VENDOR_DLKM_STAGING_DIR}")" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_dlkm.tree"
+        echo -e "::debug::Final vendor_dlkm props file contents :\n$(cat "${vendor_dlkm_props_file}")" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_dlkm.prop"
 
-        echo "::info:: Building vendor_dlkm Image"
+        echo "::note:: Building vendor_dlkm Image"
+        set -x
         build_image "${VENDOR_DLKM_STAGING_DIR}" "${vendor_dlkm_props_file}" "${OUT}/vendor_dlkm.img" /dev/null
+        set +x
 
         VENDOR_DLKM_SHA256=$(sha256sum "${OUT}/vendor_dlkm.img" | cut -d' ' -f1)
         echo "vendor_dlkm_sha256=${VENDOR_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
@@ -1287,10 +1336,10 @@ runs:
           ccache --evict-older-than "${ccache_delta}s"
         fi
 
-        echo "[WARNING] Deleting old LTO cache"
+        echo "::warning::Deleting old LTO cache"
         gh cache delete LTO-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
-        echo "[WARNING] Deleting old ccache"
+        echo "::warning::Deleting old ccache"
         gh cache delete ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
     - name: Save ccache
