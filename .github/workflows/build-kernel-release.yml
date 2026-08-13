@@ -120,11 +120,10 @@ on:
         type: choice
         options:
           - OP11
-          - OP11_LOS
           - OP12
           - OP12R
-          - POCO_F6_LOS
-          - POCO_X6_LOS
+          - POCO_F6
+          - POCO_X6
           - REDMI_15
           - REDMI_12
         default: OP11
