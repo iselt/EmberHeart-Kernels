@@ -8,8 +8,13 @@
   "vendor_boot_partition_size": "134217728",
   "qcacld_dev_name": "",
   "clang": "manifest",
+  "manifest_hos": {
+    "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/redmi_12_hos.xml",
+    "os": "HyperOS",
+    "os_short": "hos"
+  },
   "manifest_custom": {
-    "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/redmi_12.xml",
+    "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/redmi_12_pos.xml",
     "os": "PixelOS",
     "os_short": "pos",
     "boot_partition_size": "100663296",

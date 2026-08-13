@@ -37,6 +37,7 @@ on:
           - OOS16_CUSTOM
           - LOS_22_2
           - LOS_23_2
+          - HOS
           - CUSTOM
         default: OOS16_CUSTOM
       evict_unused_ccache:
