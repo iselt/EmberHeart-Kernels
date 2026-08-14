@@ -32,7 +32,7 @@ inputs:
   lto:
     required: false
     type: string
-    default: Thin  # Choices: Thin or Full
+    default: thin  # Choices: thin or full
   kernel_uname:
     required: false
     type: string
@@ -167,7 +167,7 @@ runs:
           ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-
 
     - name: Restore LTO cache
-      if: ${{ inputs.lto == 'Thin'}}
+      if: ${{ inputs.lto == 'thin'}}
       uses: actions/cache/restore@v5
       with:
         path: ${{ env.LDCACHE_DIR }}
@@ -918,14 +918,28 @@ runs:
         echo "::group::Applying build based configs..."
         cd "$COMMON"
 
-        if [[ "${{ inputs.lto }}" = "Thin" ]]; then
+        if [[ "${{ inputs.lto }}" == "none" ]]; then
           ./scripts/config --file arch/arm64/configs/kernel.config \
-            -e CONFIG_LTO_CLANG_THIN \
-            -e CONFIG_LTO_CLANG
+            -d LTO_CLANG \
+            -e LTO_NONE \
+            -d LTO_CLANG_THIN \
+            -d LTO_CLANG_FULL \
+            -d THINLTO \
+            --set-val FRAME_WARN 0
+        elif [[ "${{ inputs.lto }}" == "thin" ]]; then
+          ./scripts/config --file arch/arm64/configs/kernel.config \
+            -e LTO_CLANG \
+            -d LTO_NONE \
+            -e LTO_CLANG_THIN \
+            -d LTO_CLANG_FULL \
+            -e THINLTO
         else
           ./scripts/config --file arch/arm64/configs/kernel.config \
-            -e CONFIG_LTO_CLANG_FULL \
-            -e CONFIG_LTO_CLANG
+            -e LTO_CLANG \
+            -d LTO_NONE \
+            -d LTO_CLANG_THIN \
+            -e LTO_CLANG_FULL \
+            -d THINLTO
         fi
 
         # Optimize level config and flags
@@ -935,8 +949,8 @@ runs:
             -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
         else
           ./scripts/config --file arch/arm64/configs/kernel.config \
-           -e CC_OPTIMIZE_FOR_PERFORMANCE \
-           -d CC_OPTIMIZE_FOR_PERFORMANCE_O3
+            -e CC_OPTIMIZE_FOR_PERFORMANCE \
+            -d CC_OPTIMIZE_FOR_PERFORMANCE_O3
         fi
         echo "Build configs applied ✅"
         echo "::endgroup::"
@@ -1038,7 +1052,7 @@ runs:
           export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
         fi
 
-        if [[ "${{ inputs.lto }}" = "Thin" ]]; then
+        if [[ "${{ inputs.lto }}" = "thin" ]]; then
         (
           cd "${KERNEL_DIR}"
           echo '#!/bin/bash' > ld-wrapper
@@ -1629,7 +1643,7 @@ runs:
         key: ccache-${{ env.CODENAME }}-${{ env.OS_SHORT }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}-${{ inputs.lto }}_LTO
 
     - name: Save LTO cache
-      if: ${{ inputs.lto == 'Thin' }}
+      if: ${{ inputs.lto == 'thin' }}
       uses: actions/cache/save@v5
       with:
         path: ${{ env.LDCACHE_DIR }}

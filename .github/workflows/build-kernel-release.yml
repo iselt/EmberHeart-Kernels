@@ -75,8 +75,8 @@ on:
         description: "Link Time Optimization level"
         required: true
         type: choice
-        options: [Thin, Full]
-        default: Full
+        options: [none, thin, full]
+        default: none
       clang_version:
         description: "Select Compiler version"
         required: true
