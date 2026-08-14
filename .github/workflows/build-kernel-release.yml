@@ -294,18 +294,19 @@ jobs:
           chat_id: ${{ secrets.TG_CHAT_ID }}
           thread_id: ${{ steps.tg_thread.outputs.thread_id }}
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
-          mode: text
+          mode: rich
           message: |
             # Build Started
-            ```
-            Device: ${{ matrix.product }}
-            Build Target: ${{ inputs.build_target }}
-            Branch: ${{ github.ref_name }}
-            Manifest: ${{ inputs.manifest }}
-            Optimization: ${{ inputs.optimize_level }} / LTO ${{ inputs.lto }}
-            Release type: ${{ inputs.release_type }}
-            Triggered by: ${{ github.actor }}
-            ```
+            ## Triggered by ${{ github.actor }}
+            ### Release type : ${{ inputs.release_type }}
+
+            | --- | --- |
+            | Device | ${{ matrix.product }} |
+            | Build Target | ${{ inputs.build_target }} |
+            | Branch | ${{ github.ref_name }} |
+            | Manifest | ${{ inputs.manifest }} |
+            | Optimization | ${{ inputs.optimize_level }} |
+            | LTO | ${{ inputs.lto }} |
 
             Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
             Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
@@ -403,15 +404,17 @@ jobs:
           chat_id: ${{ secrets.TG_CHAT_ID }}
           thread_id: ${{ steps.tg_thread.outputs.thread_id }}
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
-          mode: text
+          mode: rich
           message: |
             #${{ steps.tg_fail_stage.outputs.emoji }} Build ${{ steps.tg_fail_stage.outputs.reason }}
-            ```
-            Device: ${{ matrix.product }}
-            Stage: ${{ steps.tg_fail_stage.outputs.stage }}
-            Branch: ${{ github.ref_name }}
-            Triggered by: ${{ github.actor }}
-            ```
+
+            | --- | --- |
+            | Device | ${{ matrix.product }} |
+            | Stage | ${{ steps.tg_fail_stage.outputs.stage }} |
+
+            > Branch: ${{ github.ref_name }}
+            > Triggered by: ${{ github.actor }}
+
             Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
             Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 

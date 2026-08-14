@@ -1540,19 +1540,18 @@ runs:
         chat_id: ${{ inputs.tg_chat_id }}
         thread_id: ${{ inputs.tg_thread_id }}
         api_base_url: ${{ inputs.tg_api_base }}
-        mode: media-group
+        mode: rich-with-file
         files: |
           ${{ env.ARTIFACTS_DIR }}/${{ steps.create_zip.outputs.zip_name }}
           ${{ env.ARTIFACTS_DIR }}/boot.img
           ${{ env.ARTIFACTS_DIR }}/system_dlkm.img
         message: |
           # Kernel Artifacts
-          ```
-          Model: ${{ env.PRODUCT }}
-          Kernel Version: ${{ steps.get_kernel_version.outputs.kernel_version }}
-          Compiler: {{ env.CLANG_VERSION }}
-          KernelSU Next: ${{ steps.add_ksun.outputs.ksun_tag }}
-          ```
+          | --- | --- |
+          | Model | ${{ env.PRODUCT }} |
+          | Kernel Version | ${{ steps.get_kernel_version.outputs.kernel_version }} |
+          | Compiler | {{ env.CLANG_VERSION }} |
+          | KernelSU Next | ${{ steps.add_ksun.outputs.ksun_tag }} |
 
     - name: Format build time
       id: build_time
@@ -1686,16 +1685,15 @@ runs:
         chat_id: ${{ inputs.tg_chat_id }}
         thread_id: ${{ inputs.tg_thread_id }}
         api_base_url: ${{ inputs.tg_api_base }}
-        mode: media-group
+        mode: rich-with-file
         files: |
           ${{ env.ARTIFACTS_DIR_DEBUG }}/config
           ${{ steps.tg_debug_zip.outputs.zip_path }}
         message: |
           # 🐛 Debug Artifacts (common)
-          ```
-          Model:${{ env.PRODUCT }}
-          Build time: ${{ steps.build_time.outputs.duration }}
-          ```
+          | --- | --- |
+          | Model | ${{ env.PRODUCT }} |
+          | Build time | ${{ steps.build_time.outputs.duration }} |
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4

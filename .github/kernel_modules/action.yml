@@ -1394,7 +1394,7 @@ runs:
         chat_id: ${{ inputs.tg_chat_id }}
         thread_id: ${{ inputs.tg_thread_id }}
         api_base_url: ${{ inputs.tg_api_base }}
-        mode: media-group
+        mode: rich-with-file
         files: |
           ${{ steps.create_modules_zip.outputs.modules_zip_path }}
           ${{ env.ARTIFACTS_DIR }}/system_dlkm.img
@@ -1403,10 +1403,8 @@ runs:
         message: |
           # Kernel Modules
 
-          ```
-          Model: ${{ env.PRODUCT }}
-          Total modules built: ${{ steps.create_modules_zip.outputs.full_modules_count }}
-          ```
+          | Model | ${{ env.PRODUCT }} |
+          | Total modules built | ${{ steps.create_modules_zip.outputs.full_modules_count }} |
 
     - name: Create debug artifacts for Telegram uploads
       id: tg_debug_zip
@@ -1431,21 +1429,20 @@ runs:
         chat_id: ${{ inputs.tg_chat_id }}
         thread_id: ${{ inputs.tg_thread_id }}
         api_base_url: ${{ inputs.tg_api_base }}
-        mode: media-group
+        mode: rich-with-file
         files: |
           ${{ env.ARTIFACTS_DIR_DEBUG }}/config
           ${{ steps.tg_debug_zip.outputs.debug_zip_path }}
         message: |
           # 🐛 Debug Artifacts (MSM)
 
-          ```
-          Model: ${{ env.PRODUCT }}
-          Total modules built: ${{ steps.create_modules_zip.outputs.full_modules_count }}
-          Modules build time: ${{ steps.build_time.outputs.duration }}
-          Oplus external modules build time: ${{ steps.build_time.outputs.duration_oplus_ext }}
-          Qcom external modules build time: ${{ steps.build_time.outputs.duration_qcom_ext }}
-          External dtbo build time: ${{ steps.build_time.outputs.duration_dtb_ext }}
-          ```
+          | --- | --- |
+          | Model | ${{ env.PRODUCT }} |
+          | Total modules built | ${{ steps.create_modules_zip.outputs.full_modules_count }} |
+          | Modules build time | ${{ steps.build_time.outputs.duration }} |
+          | Oplus external modules build time | ${{ steps.build_time.outputs.duration_oplus_ext }} |
+          | Qcom external modules build time | ${{ steps.build_time.outputs.duration_qcom_ext }} |
+          | External dtbo build time | ${{ steps.build_time.outputs.duration_dtb_ext }} |
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4
