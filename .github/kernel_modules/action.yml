@@ -1404,6 +1404,7 @@ runs:
           # Kernel Modules
 
           | Model | ${{ env.PRODUCT }} |
+          | ---- | ---- |
           | Total modules built | ${{ steps.create_modules_zip.outputs.full_modules_count }} |
 
     - name: Create debug artifacts for Telegram uploads
@@ -1436,8 +1437,8 @@ runs:
         message: |
           # 🐛 Debug Artifacts (MSM)
 
-          | --- | --- |
           | Model | ${{ env.PRODUCT }} |
+          | --- | --- |
           | Total modules built | ${{ steps.create_modules_zip.outputs.full_modules_count }} |
           | Modules build time | ${{ steps.build_time.outputs.duration }} |
           | Oplus external modules build time | ${{ steps.build_time.outputs.duration_oplus_ext }} |

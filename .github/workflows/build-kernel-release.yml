@@ -297,19 +297,21 @@ jobs:
           mode: rich
           message: |
             # Build Started
-            ## Triggered by ${{ github.actor }}
-            ### Release type : ${{ inputs.release_type }}
+            ##### Release type : ${{ inputs.release_type }}
+            <footer>Triggered by ${{ github.actor }}</footer>
 
-            | --- | --- |
+            ---
+
             | Device | ${{ matrix.product }} |
+            | --- | --- |
             | Build Target | ${{ inputs.build_target }} |
             | Branch | ${{ github.ref_name }} |
             | Manifest | ${{ inputs.manifest }} |
             | Optimization | ${{ inputs.optimize_level }} |
             | LTO | ${{ inputs.lto }} |
 
-            Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-            Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            > Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) <br>
+            > Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Setup Build Environment
         id: setup_env
@@ -406,17 +408,17 @@ jobs:
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
           mode: rich
           message: |
-            #${{ steps.tg_fail_stage.outputs.emoji }} Build ${{ steps.tg_fail_stage.outputs.reason }}
+            # ${{ steps.tg_fail_stage.outputs.emoji }} Build ${{ steps.tg_fail_stage.outputs.reason }}
 
-            | --- | --- |
             | Device | ${{ matrix.product }} |
+            | --- | --- |
             | Stage | ${{ steps.tg_fail_stage.outputs.stage }} |
 
-            > Branch: ${{ github.ref_name }}
+            > Branch: ${{ github.ref_name }} <br>
             > Triggered by: ${{ github.actor }}
 
-            Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-            Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            > Commit: [${{ steps.tg_thread.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) <br>
+            > Run: [#${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Stop local Telegram Bot API server
         if: always() && steps.tg_check.outputs.enabled == 'true'

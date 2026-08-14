@@ -1547,8 +1547,9 @@ runs:
           ${{ env.ARTIFACTS_DIR }}/system_dlkm.img
         message: |
           # Kernel Artifacts
-          | --- | --- |
+
           | Model | ${{ env.PRODUCT }} |
+          | --- | --- |
           | Kernel Version | ${{ steps.get_kernel_version.outputs.kernel_version }} |
           | Compiler | {{ env.CLANG_VERSION }} |
           | KernelSU Next | ${{ steps.add_ksun.outputs.ksun_tag }} |
@@ -1691,8 +1692,9 @@ runs:
           ${{ steps.tg_debug_zip.outputs.zip_path }}
         message: |
           # 🐛 Debug Artifacts (common)
-          | --- | --- |
+
           | Model | ${{ env.PRODUCT }} |
+          | --- | --- |
           | Build time | ${{ steps.build_time.outputs.duration }} |
 
     - name: Upload Debug zip
