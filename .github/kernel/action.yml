@@ -1575,8 +1575,7 @@ runs:
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
 
-        tar -czf "${OUT}/system_dlkm_archive.tar.gz" -C "${SYSTEM_DLKM_STAGING_DIR}" .
-        cp "${OUT}/system_dlkm_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
+        tar -czf "${ARTIFACTS_DIR_DEBUG}/system_dlkm_archive.tar.gz" -C "${SYSTEM_DLKM_STAGING_DIR}" .
 
     - name: Upload Kernel Artifacts to Telegram
       if: ${{ inputs.tg_enabled == 'true' && success() && steps.create_boot.conclusion == 'success' }}

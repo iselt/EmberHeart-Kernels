@@ -687,12 +687,17 @@ runs:
           cp "${PREBUILTS}/dtb" "${OUT}/dtb.img"
         else
           echo "::warning:: dtb not found from prebuilts"
-          DTB_FILE_LIST=$(find "${OUT}/dtbs_staging" -name "*.dtb" | sort)
-          cat $DTB_FILE_LIST > "${OUT}/dtb.img"
+          if [[ -d "${OUT}/dtbs_staging" ]]; then
+            DTB_FILE_LIST=$(find "${OUT}/dtbs_staging" -name "*.dtb" | sort)
+            cat $DTB_FILE_LIST > "${OUT}/dtb.img"
+          else
+            echo "::warning:: dtbs_staging dir not found"
+          fi
         fi
 
-        tar -czf "${OUT}/dtbs_staging_archive.tar.gz" -C "${OUT}/dtbs_staging" .
-        cp "${OUT}/dtbs_staging_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
+        if [[ -d "${OUT}/dtbs_staging" ]]; then
+          tar -czf "${ARTIFACTS_DIR_DEBUG}/dtbs_staging_archive.tar.gz" -C "${OUT}/dtbs_staging" .
+        fi
 
     - name: Create system_dlkm Image
       if: ${{ inputs.compile_dlkm == 'true'  && env.BUILD_TYPE == 'Monolithic Build' }}
@@ -857,8 +862,7 @@ runs:
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
 
-        tar -czf "${OUT}/system_dlkm_archive.tar.gz" -C "${SYSTEM_DLKM_STAGING_DIR}" .
-        cp "${OUT}/system_dlkm_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
+        tar -czf "${ARTIFACTS_DIR_DEBUG}/system_dlkm_archive.tar.gz" -C "${SYSTEM_DLKM_STAGING_DIR}" .
 
     - name: Create vendor_boot
       id: create_vendor_boot
@@ -1089,8 +1093,7 @@ runs:
         cp "${OUT}/ramdisk.cpio" "${ARTIFACTS_DIR_DEBUG}"
         cp "${OUT}/vendor-bootconfig.img" "${ARTIFACTS_DIR_DEBUG}"
 
-        tar -czf "${OUT}/vendor_boot_archive.tar.gz" -C "${VENDOR_BOOT_STAGING_DIR}" .
-        cp "${OUT}/vendor_boot_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
+        tar -czf "${ARTIFACTS_DIR_DEBUG}/vendor_boot_archive.tar.gz" -C "${VENDOR_BOOT_STAGING_DIR}" .
 
     - name: Create vendor_dlkm
       id: create_vendor_dlkm
@@ -1275,8 +1278,7 @@ runs:
         cp "${OUT}/vendor_dlkm.modules.load" "${ARTIFACTS_DIR}"
         cp "${OUT}/vendor_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
 
-        tar -czf "${OUT}/vendor_dlkm_archive.tar.gz" -C "${VENDOR_DLKM_STAGING_DIR}" .
-        cp "${OUT}/vendor_dlkm_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
+        tar -czf "${ARTIFACTS_DIR_DEBUG}/vendor_dlkm_archive.tar.gz" -C "${VENDOR_DLKM_STAGING_DIR}" .
 
     - name: Filter modules
       shell: bash
