@@ -440,7 +440,7 @@ runs:
         fi
 
         if [[ -f "$KERNEL_PLATFORM/build/build-tools/path/linux-x86/dtc" ]]; then
-          DTC="$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc"
+          DTC="$KERNEL_PLATFORM/build/build-tools/path/linux-x86/dtc"
         elif [[ -f "$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin/dtc" ]]; then
           DTC="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin/dtc"
         else
