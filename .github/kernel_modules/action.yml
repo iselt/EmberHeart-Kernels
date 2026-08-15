@@ -472,8 +472,8 @@ runs:
         OUT=out
         INSTALL_MOD_PATH="${ROOT_DIR}/${KERNEL_DIR}/$OUT"
         INSTALL_DTBS_PATH="${ROOT_DIR}/${KERNEL_DIR}/$OUT/dtbs_staging"
-        export MSM_ARCH="$SOC"
-        DTB_TYPES="$MSM_ARCH-overlays-"
+        export MSM_ARCH="${SOC}"
+        DTB_TYPES="${MSM_ARCH}-overlays-"
 
         mkdir -p "$OUT"
 
@@ -649,12 +649,12 @@ runs:
         SECONDS=0
 
         set -x
-        for PROJECT in $(cd "$CONFIG" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
-          if [[ ! -e "../$PROJECT/Makefile" ]]; then
+        for PROJECT in $(cd "${CONFIG}" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
+          if [[ ! -e "../${PROJECT}/Makefile" ]]; then
             echo "$PROJECT does not have expected build configuration files, skipping..."
             continue
           fi
-          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
+          make -C "../${PROJECT}" M="../../${PROJECT}" -j$(nproc --all) "${MAKE_FLAGS[@]}" "${MAKE_FLAGS_EXTRA[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
         done
         set +x
 
@@ -680,17 +680,19 @@ runs:
       if: ${{ inputs.compile_dlkm == 'true' }}
       shell: bash
       run: |
-        OUT="$MSM/out"
-        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/${CODENAME}-${OS_SHORT}"
-        if curl -fsSL "$PREBUILTS/vendor_boot/dtb" -o "$OUT/dtb.img"; then
+        OUT="${MSM}/out"
+        PREBUILTS="${KERNEL_PATCHES}/device/${CODENAME}-${OS_SHORT}/vendor_boot"
+        if [[ -f "${PREBUILTS}/dtb" ]]; then
           echo "Using dtb from prebuilts."
+          cp "${PREBUILTS}/dtb" "${OUT}/dtb.img"
         else
-          echo "WARNING: dtb not found from prebuilts"
-          DTB_FILE_LIST=$(find "$OUT/dtbs_staging" -name "*.dtb" | sort)
-          cat $DTB_FILE_LIST > "$OUT/dtb.img"
+          echo "::warning:: dtb not found from prebuilts"
+          DTB_FILE_LIST=$(find "${OUT}/dtbs_staging" -name "*.dtb" | sort)
+          cat $DTB_FILE_LIST > "${OUT}/dtb.img"
         fi
 
-        cp -r "$OUT/dtbs_staging/" "$ARTIFACTS_DIR_DEBUG"
+        tar -czf "${OUT}/dtbs_staging_archive.tar.gz" -C "${OUT}/dtbs_staging" .
+        cp "${OUT}/dtbs_staging_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
 
     - name: Create system_dlkm Image
       if: ${{ inputs.compile_dlkm == 'true'  && env.BUILD_TYPE == 'Monolithic Build' }}
@@ -787,8 +789,8 @@ runs:
         # Allow build.config to define what goes into system_dlkm
         if [[ ! -v SYSTEM_DLKM_EXTRA_FILES ]]; then
           mkdir -p "${SYSTEM_DLKM_STAGING_DIR}/etc"
-          if [[ -f "${PREBUILTS}/etc/build.prop" ]]; then
-            cp "${PREBUILTS}/etc/build.prop" "${SYSTEM_DLKM_STAGING_DIR}/etc"
+          if [[ -d "${PREBUILTS}/etc" ]]; then
+            cp "${PREBUILTS}/etc"/* "${SYSTEM_DLKM_STAGING_DIR}/etc/"
             touch "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_files"
           fi
         else
@@ -854,6 +856,9 @@ runs:
         cp "${OUT}/system_dlkm.img" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
+
+        tar -czf "${OUT}/system_dlkm_archive.tar.gz" -C "${SYSTEM_DLKM_STAGING_DIR}" .
+        cp "${OUT}/system_dlkm_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
 
     - name: Create vendor_boot
       id: create_vendor_boot
@@ -962,6 +967,12 @@ runs:
           shopt -u nullglob
         else
           echo "::warning:: first_stage_ramdisk folder is missing for vendor boot partition in PREBUILTS dir"
+        fi
+
+        if [[ -d "${PREBUILTS}/ramdisk" ]]; then
+          shopt -s nullglob
+          cp "${PREBUILTS}/ramdisk"/* "${RAMDISK_STAGING_DIR}/"
+          shopt -u nullglob
         fi
 
         cd "${VENDOR_BOOT_STAGING_DIR}"
@@ -1078,6 +1089,9 @@ runs:
         cp "${OUT}/ramdisk.cpio" "${ARTIFACTS_DIR_DEBUG}"
         cp "${OUT}/vendor-bootconfig.img" "${ARTIFACTS_DIR_DEBUG}"
 
+        tar -czf "${OUT}/vendor_boot_archive.tar.gz" -C "${VENDOR_BOOT_STAGING_DIR}" .
+        cp "${OUT}/vendor_boot_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
+
     - name: Create vendor_dlkm
       id: create_vendor_dlkm
       if: ${{ inputs.compile_dlkm == 'true' }}
@@ -1190,8 +1204,8 @@ runs:
         # VENDOR_DLKM_STAGING_DIR holds the root path of the dlkm partition
         if [[ ! -v VENDOR_DLKM_EXTRA_FILES ]]; then
           mkdir -p "${VENDOR_DLKM_STAGING_DIR}/etc"
-          if [[ -f "${PREBUILTS}/etc/build.prop" ]]; then
-            cp "${PREBUILTS}/etc/build.prop" "${VENDOR_DLKM_STAGING_DIR}/etc"
+          if [[ -d "${PREBUILTS}/etc" ]]; then
+            cp "${PREBUILTS}/etc"/* "${VENDOR_DLKM_STAGING_DIR}/etc/"
             touch "${VENDOR_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${VENDOR_DLKM_STAGING_DIR}/etc/fs_config_files"
           fi
         else
@@ -1260,6 +1274,9 @@ runs:
         cp "${OUT}/vendor_dlkm.img" "${ARTIFACTS_DIR}"
         cp "${OUT}/vendor_dlkm.modules.load" "${ARTIFACTS_DIR}"
         cp "${OUT}/vendor_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
+
+        tar -czf "${OUT}/vendor_dlkm_archive.tar.gz" -C "${VENDOR_DLKM_STAGING_DIR}" .
+        cp "${OUT}/vendor_dlkm_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
 
     - name: Filter modules
       shell: bash

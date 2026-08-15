@@ -1499,8 +1499,8 @@ runs:
         # Allow build.config to define what goes into system_dlkm
         if [[ ! -v SYSTEM_DLKM_EXTRA_FILES ]]; then
           mkdir -p "${SYSTEM_DLKM_STAGING_DIR}/etc"
-          if [[ -f "${PREBUILTS}/etc/build.prop" ]]; then
-            cp "${PREBUILTS}/etc/build.prop" "${SYSTEM_DLKM_STAGING_DIR}/etc"
+          if [[ -d "${PREBUILTS}/etc" ]]; then
+            cp "${PREBUILTS}/etc"/* "${SYSTEM_DLKM_STAGING_DIR}/etc/"
             touch "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_dirs" "${SYSTEM_DLKM_STAGING_DIR}/etc/fs_config_files"
           fi
         else
@@ -1574,6 +1574,9 @@ runs:
         cp "${OUT}/system_dlkm.img" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR}"
         cp "${OUT}/system_dlkm.modules.load" "${ARTIFACTS_DIR_DEBUG}"
+
+        tar -czf "${OUT}/system_dlkm_archive.tar.gz" -C "${SYSTEM_DLKM_STAGING_DIR}" .
+        cp "${OUT}/system_dlkm_archive.tar.gz" "${ARTIFACTS_DIR_DEBUG}"
 
     - name: Upload Kernel Artifacts to Telegram
       if: ${{ inputs.tg_enabled == 'true' && success() && steps.create_boot.conclusion == 'success' }}
