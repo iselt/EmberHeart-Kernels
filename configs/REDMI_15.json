@@ -10,8 +10,8 @@
   "clang": "manifest",
   "manifest_custom": {
     "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/redmi_15.xml",
-    "os": "HyperOS 2/3",
-    "os_short": "hos"
+    "os": "Evolution X",
+    "os_short": "evox"
   },
   "android_version": "android14",
   "kernel_version": "6.1",
