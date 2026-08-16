@@ -1036,6 +1036,9 @@ runs:
         #                            Example use case : Use a props file already defined somewhere else (e.g KERNEL_DIR)
         #                            How to use : define SYSTEM_DLKM_PROPS_FILE with absolute path of the props file
         #                            Note :  If system_dlkm.prop is present in the ${PREBUILTS} directory then it will get the highest priority
+        # - SYSTEM_DLKM_FS_TYPE : defines compiled system_dlkm partition type
+        #                       Supported values : "ext4" or "erofs"
+
         if [[ -f "${BUILD_CONFIG}" ]]; then
           echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
@@ -1516,18 +1519,26 @@ runs:
         # Create temporary prop file for system_dlkm image
         system_dlkm_props_file="$(mktemp)"
 
+        : "${SYSTEM_DLKM_FS_TYPE:=ext4}"
+        system_dlkm_default_fs_type="ext4"
+        if [[ "${SYSTEM_DLKM_FS_TYPE}" != "ext4" && "${SYSTEM_DLKM_FS_TYPE}" != "erofs" ]]; then
+          echo "WARNING: Invalid SYSTEM_DLKM_FS_TYPE = ${SYSTEM_DLKM_FS_TYPE}" >&2
+          SYSTEM_DLKM_FS_TYPE="${system_dlkm_default_fs_type}"
+          echo "INFO: Defaulting SYSTEM_DLKM_FS_TYPE to ${SYSTEM_DLKM_FS_TYPE}"
+        fi
+
         # Allow build.config to introduce custom system_dlkm props file
         if [[ -f "${PREBUILTS}/system_dlkm.prop" ]]; then
           echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${PREBUILTS}/system_dlkm.prop")"
           cat "${PREBUILTS}/system_dlkm.prop" >> ${system_dlkm_props_file}
         else
           if [[ ! -v SYSTEM_DLKM_PROPS_FILE ]]; then
-            echo "system_dlkm_fs_type=ext4" >> ${system_dlkm_props_file}
+            echo "system_dlkm_fs_type=${SYSTEM_DLKM_FS_TYPE}" >> ${system_dlkm_props_file}
             echo "use_dynamic_partition_size=true" >> ${system_dlkm_props_file}
-            echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${system_dlkm_props_file}
-            echo "ext4_share_dup_blocks=true" >> ${system_dlkm_props_file}
-            # echo -e "partition_name=system_dlkm\n" >> ${system_dlkm_props_file}
-            # echo -e "mount_point=system_dlkm\n" >> ${system_dlkm_props_file}
+            if [[ "${SYSTEM_DLKM_FS_TYPE}" == "ext4" ]]; then
+              echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${system_dlkm_props_file}
+              echo "ext4_share_dup_blocks=true" >> ${system_dlkm_props_file}
+            fi
           else
             echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
             cat "${SYSTEM_DLKM_PROPS_FILE}" >> ${system_dlkm_props_file}

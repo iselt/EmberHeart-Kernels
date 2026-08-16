@@ -378,6 +378,8 @@ runs:
         #                            Example use case : Use a props file already defined somewhere else (e.g KERNEL_DIR)
         #                            How to use : define SYSTEM_DLKM_PROPS_FILE with absolute path of the props file
         #                            Note :  If system_dlkm.prop is present in the ${PREBUILTS} directory then it will get the highest priority
+        # - SYSTEM_DLKM_FS_TYPE : defines compiled system_dlkm partition type
+        #                       Supported values : "ext4" or "erofs" 
         # - LZ4_RAMDISK : if set to 1, cpio compressed ramdisk to be used for creating vendor_boot will be compressed using lz4 algo
         #                 To use gzip compression set this variable to any value other than 1
         #                 This variable defaults to 1
@@ -414,6 +416,9 @@ runs:
         #                            Example use case : Use a props file already defined somewhere else (e.g KERNEL_DIR)
         #                            How to use : define VENDOR_DLKM_PROPS_FILE with absolute path of the props file
         #                            Note :  If vendor_dlkm.prop is present in the ${PREBUILTS} directory then it will get the highest priority
+        # - VENDOR_DLKM_FS_TYPE : defines compiled vendor_dlkm partition type
+        #                         Supported values : "ext4" or "erofs" 
+
         if [[ -f "${BUILD_CONFIG}" ]]; then
           echo "::debug::Inheriting build config: ${BUILD_CONFIG}"
           set -a
@@ -811,18 +816,26 @@ runs:
         # Create temporary prop file for system_dlkm image
         system_dlkm_props_file="$(mktemp)"
 
+        : "${SYSTEM_DLKM_FS_TYPE:=ext4}"
+        system_dlkm_default_fs_type="ext4"
+        if [[ "${SYSTEM_DLKM_FS_TYPE}" != "ext4" && "${SYSTEM_DLKM_FS_TYPE}" != "erofs" ]]; then
+          echo "WARNING: Invalid SYSTEM_DLKM_FS_TYPE = ${SYSTEM_DLKM_FS_TYPE}" >&2
+          SYSTEM_DLKM_FS_TYPE="${system_dlkm_default_fs_type}"
+          echo "INFO: Defaulting SYSTEM_DLKM_FS_TYPE to ${SYSTEM_DLKM_FS_TYPE}"
+        fi
+
         # Allow build.config to introduce custom system_dlkm props file
         if [[ -f "${PREBUILTS}/system_dlkm.prop" ]]; then
           echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${PREBUILTS}/system_dlkm.prop")"
           cat "${PREBUILTS}/system_dlkm.prop" >> ${system_dlkm_props_file}
         else
           if [[ ! -v SYSTEM_DLKM_PROPS_FILE ]]; then
-            echo "system_dlkm_fs_type=ext4" >> ${system_dlkm_props_file}
+            echo "system_dlkm_fs_type=${SYSTEM_DLKM_FS_TYPE}" >> ${system_dlkm_props_file}
             echo "use_dynamic_partition_size=true" >> ${system_dlkm_props_file}
-            echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${system_dlkm_props_file}
-            echo "ext4_share_dup_blocks=true" >> ${system_dlkm_props_file}
-            # echo -e "partition_name=system_dlkm\n" >> ${system_dlkm_props_file}
-            # echo -e "mount_point=system_dlkm\n" >> ${system_dlkm_props_file}
+            if [[ "${SYSTEM_DLKM_FS_TYPE}" == "ext4" ]]; then
+              echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${system_dlkm_props_file}
+              echo "ext4_share_dup_blocks=true" >> ${system_dlkm_props_file}
+            fi
           else
             echo -e "::debug::Using custom system_dlkm prop file with props:\n$(cat "${SYSTEM_DLKM_PROPS_FILE}")"
             cat "${SYSTEM_DLKM_PROPS_FILE}" >> ${system_dlkm_props_file}
@@ -1230,17 +1243,26 @@ runs:
         # Create temporary prop file for vendor_dlkm image
         vendor_dlkm_props_file="$(mktemp)"
 
+        : "${VENDOR_DLKM_FS_TYPE:=ext4}"
+        vendor_dlkm_default_fs_type="ext4"
+        if [[ "${VENDOR_DLKM_FS_TYPE}" != "ext4" && "${VENDOR_DLKM_FS_TYPE}" != "erofs" ]]; then
+          echo "WARNING: Invalid VENDOR_DLKM_FS_TYPE = ${VENDOR_DLKM_FS_TYPE}" >&2
+          VENDOR_DLKM_FS_TYPE="${vendor_dlkm_default_fs_type}"
+          echo "INFO: Defaulting VENDOR_DLKM_FS_TYPE to ${VENDOR_DLKM_FS_TYPE}"
+        fi
+
         # Allow build.config to introduce custom vendor_dlkm props file
         if [[ -f "${PREBUILTS}/vendor_dlkm.prop" ]]; then
           echo -e "::debug::Using custom vendor_dlkm prop file with props:\n$(cat "${PREBUILTS}/vendor_dlkm.prop")"
           cat "${PREBUILTS}/vendor_dlkm.prop" >> ${vendor_dlkm_props_file}
         else
           if [[ ! -v VENDOR_DLKM_PROPS_FILE ]]; then
-            echo "vendor_dlkm_fs_type=ext4" >> ${vendor_dlkm_props_file}
+            echo "vendor_dlkm_fs_type=${VENDOR_DLKM_FS_TYPE}" >> ${vendor_dlkm_props_file}
             echo "use_dynamic_partition_size=true" >> ${vendor_dlkm_props_file}
-            echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${vendor_dlkm_props_file}
-            echo "ext4_share_dup_blocks=true" >> ${vendor_dlkm_props_file}
-            # echo -e "mount_point=vendor_dlkm\n" >> ${vendor_dlkm_props_file}
+            if [[ "${VENDOR_DLKM_FS_TYPE}" == "ext4" ]]; then
+              echo "ext_mkuserimg=mkuserimg_mke2fs" >> ${vendor_dlkm_props_file}
+              echo "ext4_share_dup_blocks=true" >> ${vendor_dlkm_props_file}
+            fi
           else
             echo -e "::debug::Using custom vendor_dlkm prop file with props:\n$(cat "${VENDOR_DLKM_PROPS_FILE}")"
             cat "${VENDOR_DLKM_PROPS_FILE}" >> ${vendor_dlkm_props_file}
