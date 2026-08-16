@@ -1466,6 +1466,8 @@ runs:
             module_path=$(find . -name "${module}" -print -quit)
             if [[ -n "${module_path}" ]]; then
               cp --parents "${module_path}" "${DEPMOD_DIR_ROOT}"
+            elif [[ -f "${module}" ]]; then
+              cp --parents "${module}" "${DEPMOD_DIR_ROOT}"
             else
               echo "::warning:: ${module} not found"
               echo "${module}" >> "${missing_modules}"
