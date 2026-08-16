@@ -834,6 +834,11 @@ runs:
 
         if [[ -f "${PREBUILTS}/system_dlkm.selinux.fc.txt" ]]; then
           echo "system_dlkm_selinux_fc=${PREBUILTS}/system_dlkm.selinux.fc.txt" >> ${system_dlkm_props_file}
+        else
+          system_dlkm_file_contexts="$(mktemp)"
+          echo -e "system_dlkm_selinux_fc=${system_dlkm_file_contexts}" >> ${system_dlkm_props_file}
+
+          echo -e "/system_dlkm(/.*)? u:object_r:system_dlkm_file:s0" > ${system_dlkm_file_contexts}
         fi
 
         if [[ -f "${PREBUILTS}/system_dlkm.fs_config.txt" ]]; then
@@ -1247,6 +1252,14 @@ runs:
 
         if [[ -f "${PREBUILTS}/vendor_dlkm.selinux.fc.txt" ]]; then
           echo "vendor_dlkm_selinux_fc=${PREBUILTS}/vendor_dlkm.selinux.fc.txt" >> ${vendor_dlkm_props_file}
+        else
+          vendor_dlkm_file_contexts="$(mktemp)"
+          echo -e "vendor_dlkm_selinux_fc=${vendor_dlkm_file_contexts}\n" >> ${vendor_dlkm_props_file}
+
+          echo -e "/ u:object_r:vendor_file:s0" >> ${vendor_dlkm_file_contexts}
+          echo -e "/(vendor_dlkm|vendor/vendor_dlkm)(/.*)? u:object_r:vendor_file:s0" >> ${vendor_dlkm_file_contexts}
+          echo -e "/(vendor_dlkm|vendor/vendor_dlkm)/etc(/.*)? u:object_r:vendor_configs_file:s0" >> ${vendor_dlkm_file_contexts}
+          echo -e "/(vendor_dlkm|vendor/vendor_dlkm)/lib/modules(/.*)? u:object_r:vendor_file:s0" >> ${vendor_dlkm_file_contexts}
         fi
 
         if [[ -f "${PREBUILTS}/vendor_dlkm.fs_config.txt" ]]; then

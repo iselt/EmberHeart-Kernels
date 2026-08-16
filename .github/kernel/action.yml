@@ -1539,6 +1539,10 @@ runs:
 
         if [[ -f "${PREBUILTS}/system_dlkm.selinux.fc.txt" ]]; then
           echo "system_dlkm_selinux_fc=${PREBUILTS}/system_dlkm.selinux.fc.txt" >> ${system_dlkm_props_file}
+        else
+          system_dlkm_file_contexts="$(mktemp)"
+          echo -e "system_dlkm_selinux_fc=${system_dlkm_file_contexts}" >> ${system_dlkm_props_file}
+          echo -e "/system_dlkm(/.*)? u:object_r:system_dlkm_file:s0" > ${system_dlkm_file_contexts}
         fi
 
         if [[ -f "${PREBUILTS}/system_dlkm.fs_config.txt" ]]; then
