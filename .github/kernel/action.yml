@@ -1453,7 +1453,7 @@ runs:
           #
           # In mixed tree, we don't have the headache since all the modules built from gki-kernel goes into the
           # system_dlkm partition.
-          if [[ ! -f "${PREBUILTS}/system_dlkm.modules.include ]]; then
+          if [[ ! -f "${PREBUILTS}/system_dlkm.modules.include" ]]; then
             echo "::error:: system_dlkm.modules.include file is missing"
             exit 1
           fi
