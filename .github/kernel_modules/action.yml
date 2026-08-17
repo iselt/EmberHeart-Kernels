@@ -247,7 +247,6 @@ runs:
           -m CONFIG_CAN_SLCAN
 
     - name: Add my kernel patches to msm kernel
-      if: env.SOC == 'kalama' && !contains(env.MANIFEST_NAME, 'CUSTOM')
       shell: bash
       run: |
         set -euo pipefail
@@ -546,8 +545,8 @@ runs:
         echo "duration=$SECONDS" >> "$GITHUB_ENV"
 
         # Exports for external kernel modules
-        export BOARD_PLATFORM=kalama
-        export TARGET_BOARD_PLATFORM=kalama
+        export BOARD_PLATFORM="${SOC}"
+        export TARGET_BOARD_PLATFORM="${SOC}"
 
         # LOS sources expect out to be inside kernel_platform so we set out_dir as . 
         # because our actual out dir is inside common directory
