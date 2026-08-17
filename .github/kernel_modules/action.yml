@@ -258,9 +258,9 @@ runs:
           shopt -s nullglob
 
           for patch in "${KERNEL_PATCHES}/kernel_patches/${CODENAME}-${OS_SHORT}/msm"/*.patch; do
-            if patch -p1 -s -N --dry-run < "$patch" >/dev/null 2>&1; then
+            if patch -p1 -s -N -F0 --dry-run < "$patch" >/dev/null 2>&1; then
               echo "Applying patch: ${patch}"
-              patch -p1 -N < "${patch}"
+              patch -p1 -N -F0 < "${patch}"
             else
               echo "Skipping patch (conflicts or already applied): ${patch}"
             fi
@@ -1335,16 +1335,14 @@ runs:
 
         echo "Removing unnecessary modules..."
         cd modules
-        # Download default module list
-        curl -sL -o default_modules.txt https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/default_modules.txt
-        # Remove modules in the default list
 
+        # Remove modules in the default list
         while IFS= read -r module; do
           if [[ -e "$module" ]]; then
             rm -f "$module"
             echo "Removed module: $module"
           fi
-        done < default_modules.txt
+        done < "${KERNEL_PATCHES}/default_modules.txt"
         cd ..
         echo "Modules remaining after filtering: $(find modules -type f -name '*.ko' | wc -l)"
 

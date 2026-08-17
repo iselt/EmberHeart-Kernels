@@ -589,9 +589,9 @@ runs:
           shopt -s nullglob
 
           for patch in "${KERNEL_PATCHES}/kernel_patches/${CODENAME}-${OS_SHORT}/common"/*.patch; do
-            if patch -p1 -s -N --dry-run < "$patch" >/dev/null 2>&1; then
+            if patch -p1 -s -N -F0 --dry-run < "$patch" >/dev/null 2>&1; then
               echo "Applying patch: ${patch}"
-              patch -p1 -N < "${patch}"
+              patch -p1 -N -F0 < "${patch}"
             else
               echo "Skipping patch (conflicts or already applied): ${patch}"
             fi
@@ -641,25 +641,14 @@ runs:
           "$WILD_KERNEL_PATCHES/common/reduce_freeze_timeout.patch"
         )
 
-        for patch in "${PATCHES[@]}"; do
-          if patch -p1 -s -N --dry-run < "$patch" >/dev/null 2>&1; then
-            echo "Applying patch: ${patch}"
-            patch -p1 -N < "${patch}"
-          else
-            echo "Skipping patch (conflicts or already applied): ${patch}"
-          fi
-        done
-
         if [[ "$(printf '%s\n' "$KERNEL_VERSION" "$MIN_VERSION" | sort -V | head -n1)" = "$KERNEL_VERSION" ]]; then
-          PATCHES_F3=("$WILD_KERNEL_PATCHES/common/clear_page_16bytes_align.patch")
+          PATCHES+=("$WILD_KERNEL_PATCHES/common/clear_page_16bytes_align.patch")
         else
           sed -i -e 's/SYM_FUNC_START_PI(clear_page)/SYM_FUNC_START_PI(__pi_clear_page)/' "$WILD_KERNEL_PATCHES/common/clear_page_16bytes_align.patch"
-          PATCHES_F3=("$WILD_KERNEL_PATCHES/common/clear_page_16bytes_align.patch")
+          PATCHES+=("$WILD_KERNEL_PATCHES/common/clear_page_16bytes_align.patch")
         fi
 
-        PATCHES_F3+=(
-          "$WILD_KERNEL_PATCHES/common/add_limitation_scaling_min_freq.patch"
-          "$WILD_KERNEL_PATCHES/common/re_write_limitation_scaling_min_freq.patch"
+        PATCHES+=(
           "$WILD_KERNEL_PATCHES/common/adjust_cpu_scan_order.patch"
           "$WILD_KERNEL_PATCHES/common/avoid_extra_s2idle_wake_attempts.patch"
           "$WILD_KERNEL_PATCHES/common/disable_cache_hot_buddy.patch"
@@ -672,10 +661,10 @@ runs:
           "$WILD_KERNEL_PATCHES/common/use_unlikely_wrap_cpufreq.patch"
         )
 
-        for patch in "${PATCHES_F3[@]}"; do
-          if patch -p1 -F3 -s -N --dry-run < "$patch" >/dev/null 2>&1; then
+        for patch in "${PATCHES[@]}"; do
+          if patch -p1 -s -N -F0 --dry-run < "$patch" >/dev/null 2>&1; then
             echo "Applying patch: ${patch}"
-            patch -p1 -F3 -N < "${patch}"
+            patch -p1 -N -F0 < "${patch}"
           else
             echo "Skipping patch (conflicts or already applied): ${patch}"
           fi
