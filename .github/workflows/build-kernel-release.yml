@@ -230,7 +230,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${{ secrets.TG_BOT_TOKEN }}" ] || [ -z "${{ secrets.TG_CHAT_ID }}" ] || [ -z "${{ secrets.TG_API_ID }}" ] || [ -z "${{ secrets.TG_API_HASH }}" ]; then
+          if [ -z "${{ secrets.TG_BOT_TOKEN }}" ] || [ -z "${{ vars.TG_CHAT_ID }}" ] || [ -z "${{ secrets.TG_API_ID }}" ] || [ -z "${{ secrets.TG_API_HASH }}" ]; then
             echo "::warning::Telegram secrets not configured — notifications will be skipped (expected on forks)."
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
@@ -244,9 +244,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ inputs.release_type }}" != "none" ]; then
-            echo "thread_id=${{ secrets.TG_THREAD_RELEASE }}" >> "$GITHUB_OUTPUT"
+            echo "thread_id=${{ vars.TG_THREAD_RELEASE }}" >> "$GITHUB_OUTPUT"
           else
-            echo "thread_id=${{ secrets.TG_THREAD_DEV }}" >> "$GITHUB_OUTPUT"
+            echo "thread_id=${{ vars.TG_THREAD_DEV }}" >> "$GITHUB_OUTPUT"
           fi
           echo "short_sha=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
@@ -291,7 +291,7 @@ jobs:
         uses: ./.github/telegram
         with:
           bot_token: ${{ secrets.TG_BOT_TOKEN }}
-          chat_id: ${{ secrets.TG_CHAT_ID }}
+          chat_id: ${{ vars.TG_CHAT_ID }}
           thread_id: ${{ steps.tg_thread.outputs.thread_id }}
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
           mode: rich
@@ -345,7 +345,7 @@ jobs:
           compile_dlkm: ${{ inputs.compile_dlkm }}
           tg_enabled: ${{ steps.tg_check.outputs.enabled }}
           tg_bot_token: ${{ secrets.TG_BOT_TOKEN }}
-          tg_chat_id: ${{ secrets.TG_CHAT_ID }}
+          tg_chat_id: ${{ vars.TG_CHAT_ID }}
           tg_thread_id: ${{ steps.tg_thread.outputs.thread_id }}
           tg_api_base: ${{ steps.tg_server.outputs.api_base }}
           tg_send_debug: ${{ inputs.release_type == 'none' }}
@@ -364,7 +364,7 @@ jobs:
           compile_dlkm: ${{ inputs.compile_dlkm }}
           tg_enabled: ${{ steps.tg_check.outputs.enabled }}
           tg_bot_token: ${{ secrets.TG_BOT_TOKEN }}
-          tg_chat_id: ${{ secrets.TG_CHAT_ID }}
+          tg_chat_id: ${{ vars.TG_CHAT_ID }}
           tg_thread_id: ${{ steps.tg_thread.outputs.thread_id }}
           tg_api_base: ${{ steps.tg_server.outputs.api_base }}
           tg_send_debug: ${{ inputs.release_type == 'none' }}
@@ -403,7 +403,7 @@ jobs:
         uses: ./.github/telegram
         with:
           bot_token: ${{ secrets.TG_BOT_TOKEN }}
-          chat_id: ${{ secrets.TG_CHAT_ID }}
+          chat_id: ${{ vars.TG_CHAT_ID }}
           thread_id: ${{ steps.tg_thread.outputs.thread_id }}
           api_base_url: ${{ steps.tg_server.outputs.api_base }}
           mode: rich
