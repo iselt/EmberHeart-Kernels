@@ -258,9 +258,9 @@ runs:
           shopt -s nullglob
 
           for patch in "${KERNEL_PATCHES}/kernel_patches/${CODENAME}-${OS_SHORT}/msm"/*.patch; do
-            if patch -p1 -s -f --dry-run < "$patch" >/dev/null 2>&1; then
+            if patch -p1 -s -N --dry-run < "$patch" >/dev/null 2>&1; then
               echo "Applying patch: ${patch}"
-              patch -p1 --forward < "${patch}"
+              patch -p1 -N < "${patch}"
             else
               echo "Skipping patch (conflicts or already applied): ${patch}"
             fi
