@@ -873,7 +873,7 @@ runs:
         echo -e "::debug::system_dlkm fc:"
         sudo mkdir -p /mnt/system_dlkm
         sudo mount -o loop,ro "${OUT}/system_dlkm.img" /mnt/system_dlkm
-        find /mnt/system_dlkm -exec ls -Zd {} + | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.fc" || true
+        sudo getfattr -R -h -n security.selinux -m security.selinux "/mnt/system_dlkm" | tee "${ARTIFACTS_DIR_DEBUG}/system_dlkm.fc" || true
 
         SYSTEM_DLKM_SHA256=$(sha256sum "${OUT}/system_dlkm.img" | cut -d' ' -f1)
         echo "system_dlkm_sha256=${SYSTEM_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
@@ -1306,7 +1306,7 @@ runs:
         echo -e "::debug::vendor_dlkm fc:"
         sudo mkdir -p /mnt/vendor_dlkm
         sudo mount -o loop,ro "${OUT}/vendor_dlkm.img" /mnt/vendor_dlkm
-        find /mnt/vendor_dlkm -exec ls -Zd {} + | tee "${ARTIFACTS_DIR_DEBUG}/vendor_dlkm.fc" || true
+        sudo getfattr -R -h -n security.selinux -m security.selinux "/mnt/vendor_dlkm" | tee "${ARTIFACTS_DIR_DEBUG}/vendor_dlkm.fc" || true
 
         VENDOR_DLKM_SHA256=$(sha256sum "${OUT}/vendor_dlkm.img" | cut -d' ' -f1)
         echo "vendor_dlkm_sha256=${VENDOR_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
