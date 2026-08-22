@@ -201,10 +201,6 @@ runs:
       run: |
         set -euo pipefail
         cd "$MSM"
-        
-        # Realtek drivers
-        ./scripts/config --file arch/arm64/configs/modules.config \
-          -e CONFIG_WLAN_VENDOR_REALTEK
 
         # ATH drivers
         ./scripts/config --file arch/arm64/configs/modules.config \
@@ -276,15 +272,55 @@ runs:
         cd "$MSM"
         curl -LSs "https://raw.githubusercontent.com/Poko-Apps/MemKernel/main/kernel/setup.sh" | bash -s M mem-kernel
 
-    - name: Add rtw88 modules
+    - name: Add realtek modules
       shell: bash
       run: |
         set -euo pipefail
-        cd "$MSM/drivers/net/wireless/realtek/"
-        rm -rf rtw88
-        git clone https://github.com/lwfinger/rtw88.git
-        sed -i 's/$(CONFIG_RTW88)/m/g' Makefile
-        sed -i '/^source "drivers\/net\/wireless\/realtek\/rtw88\/Kconfig"$/s/.*/ /' Kconfig
+        cd "$MSM/drivers/net/wireless/"
+        rm -rf realtek
+        git clone https://github.com/nullptr-t-oss/realtek.git
+
+        cd "$MSM"
+        # Realtek drivers
+        ./scripts/config --file arch/arm64/configs/modules.config \
+          -e CONFIG_WLAN_VENDOR_REALTEK
+
+        # Realtek rtw88 drivers
+        ./scripts/config --file arch/arm64/configs/modules.config \
+          -m CONFIG_RTW88 \
+          -e CONFIG_RTW88_LEDS \
+          -m CONFIG_RTW88_8814AU \
+          -m CONFIG_RTW88_8812AU \
+          -m CONFIG_RTW88_8821AU \
+          -m CONFIG_RTW88_8821CU \
+          -m CONFIG_RTW88_8723DU \
+          -m CONFIG_RTW88_8822CU \
+          -m CONFIG_RTW88_8822BU
+
+        # Realtek rt89 drivers
+        ./scripts/config --file arch/arm64/configs/modules.config \
+          -m CONFIG_RTW89 \
+          -m CONFIG_RTW89_8851BU \
+          -m CONFIG_RTW89_8852AU \
+          -m CONFIG_RTW89_8852BU \
+          -m CONFIG_RTW89_8852CU \
+          -m CONFIG_RTW89_8922AU
+
+        # Realtek rtl drivers
+        ./scripts/config --file arch/arm64/configs/modules.config \
+          -m CONFIG_RTL_CARDS \
+          -m CONFIG_RTL8192DU \
+          -m CONFIG_RTL8192CU
+
+        # Realtek rtl818x drivers
+        ./scripts/config --file arch/arm64/configs/modules.config \
+          -m CONFIG_RTL8187 \
+          -e CONFIG_RTL8187_LEDS
+
+        # Realtek rtl8xxxu drivers
+        ./scripts/config --file arch/arm64/configs/modules.config \
+          -m CONFIG_RTL8XXXU \
+          -e CONFIG_RTL8XXXU_UNTESTED
 
     - name: Add Build based configs
       if: ${{ env.BUILD_TYPE != 'Monolithic Build' }}
