@@ -222,7 +222,7 @@ runs:
         KERNEL_PLATFORM="$CONFIG/kernel_platform"
         COMMON="$KERNEL_PLATFORM/common"
 
-        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
+        if [[ "${TREE}" == "mixed" ]]; then
           MSM="$KERNEL_PLATFORM/msm-kernel"
         else
           MSM="$COMMON"

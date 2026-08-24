@@ -8,6 +8,7 @@
   "vendor_boot_partition_size": "201326592",
   "qcacld_dev_name": "kiwi_v2",
   "clang": "manifest",
+  "tree": "mixed",
   "manifest_oos14": {
     "url": "oneplus_12_u.xml",
     "os": "OxygenOS 14",

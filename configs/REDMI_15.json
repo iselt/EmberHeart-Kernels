@@ -8,6 +8,7 @@
   "vendor_boot_partition_size": "100663296",
   "qcacld_dev_name": "",
   "clang": "manifest",
+  "tree": "monolithic",
   "manifest_custom": {
     "url": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/redmi_15.xml",
     "os": "Evolution X",

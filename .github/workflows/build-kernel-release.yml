@@ -16,16 +16,6 @@ on:
           - Pre-release
           - Release
         default: none
-      build_target:
-        description: 'What do you want to build?'
-        required: true
-        type: choice
-        options:
-          - Kernel Only
-          - Modules Only
-          - Mixed Build
-          - Monolithic Build
-        default: Mixed Build
       manifest:
         description: 'Select manifest'
         required: true
@@ -203,7 +193,6 @@ jobs:
       vendor_dlkm_sha256: ${{ steps.build_modules.outputs.vendor_dlkm_sha256 }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BUILD_TYPE: ${{ inputs.build_target }}
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_COMPILERCHECK: "content"
       CCACHE_NOHASHDIR: "true"
@@ -304,7 +293,6 @@ jobs:
 
             | Device | ${{ matrix.product }} |
             | --- | --- |
-            | Build Target | ${{ inputs.build_target }} |
             | Branch | ${{ github.ref_name }} |
             | Manifest | ${{ inputs.manifest }} |
             | Optimization | ${{ inputs.optimize_level }} |
@@ -328,7 +316,6 @@ jobs:
 
       - name: Build Kernel
         id: build_kernel
-        if: contains(fromJSON('["Kernel Only", "Mixed Build", "Monolithic Build"]'), inputs.build_target)
         uses: ./.github/kernel
         env:
           CCACHE_DIR: ${{ github.workspace }}/.kernel_ccache
@@ -352,7 +339,6 @@ jobs:
 
       - name: Build Kernel Modules
         id: build_modules
-        if: contains(fromJSON('["Modules Only", "Mixed Build", "Monolithic Build"]'), inputs.build_target)
         uses: ./.github/kernel_modules
         env:
           CCACHE_DIR: ${{ github.workspace }}/.modules_ccache
@@ -429,7 +415,7 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
-    if: ${{ inputs.release_type != 'none' && contains(fromJSON('["Mixed Build", "Monolithic Build"]'), inputs.build_target) }}
+    if: ${{ inputs.release_type != 'none' }}
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       REPO_NAME: ${{ github.event.repository.name }}
