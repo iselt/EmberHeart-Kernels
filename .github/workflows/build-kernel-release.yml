@@ -30,16 +30,11 @@ on:
           - HOS
           - CUSTOM
         default: OOS16_CUSTOM
-      evict_unused_ccache:
-        description: 'Do you want to use evict unused ccache?'
-        required: true
-        type: boolean
-        default: true
       use_custom_repo_parser:
         description: 'Do you want to use custom repo parser?'
-        required: true
+        required: false
         type: boolean
-        default: true
+        default: false
       use_opt_patches:
         description: 'Do you want to add optimization patches in kernel?'
         required: true
@@ -182,29 +177,17 @@ jobs:
       codename: ${{ matrix.codename }}
       os: ${{ steps.setup_env.outputs.os }}
       os_short: ${{ steps.setup_env.outputs.os_short }}
-      kernel_version: ${{ steps.build_kernel.outputs.kernel_version }}
-      ksun_version: ${{ steps.build_kernel.outputs.ksun_version }}
-      ksun_tag: ${{ steps.build_kernel.outputs.ksun_tag }}
-      susfs_version: ${{ steps.build_kernel.outputs.susfs_version }}
-      kernel_sha256: ${{ steps.build_kernel.outputs.kernel_sha256 }}
-      boot_sha256: ${{ steps.build_kernel.outputs.boot_sha256 }}
-      system_dlkm_sha256: ${{ steps.build_kernel.outputs.system_dlkm_sha256 }}
-      vendor_boot_sha256:  ${{ steps.build_modules.outputs.vendor_boot_sha256 }}
-      vendor_dlkm_sha256: ${{ steps.build_modules.outputs.vendor_dlkm_sha256 }}
+      kernel_version: ${{ steps._kernel.outputs.kernel_version }}
+      ksun_version: ${{ steps._kernel.outputs.ksun_version }}
+      ksun_tag: ${{ steps._kernel.outputs.ksun_tag }}
+      susfs_version: ${{ steps._kernel.outputs.susfs_version }}
+      kernel_sha256: ${{ steps.build.outputs.kernel_sha256 }}
+      boot_sha256: ${{ steps.build.outputs.boot_sha256 }}
+      system_dlkm_sha256: ${{ steps.build.outputs.system_dlkm_sha256 }}
+      vendor_boot_sha256:  ${{ steps.build.outputs.vendor_boot_sha256 }}
+      vendor_dlkm_sha256: ${{ steps.build.outputs.vendor_dlkm_sha256 }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      CCACHE_BASEDIR: ${{ github.workspace }}
-      CCACHE_COMPILERCHECK: "content"
-      CCACHE_NOHASHDIR: "true"
-      CCACHE_DEPEND: "true"
-      CCACHE_IGNOREOPTIONS: "--sysroot*"
-      CCACHE_DIRECT: "true"
-      CCACHE_FILECLONE: "true"
-      CCACHE_INODE_CACHE: "true"
-      CCACHE_UMASK: "002"
-      CCACHE_SLOPPINESS: "file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,system_headers,locale,modules"
-      CCACHE_IS_KERNEL_COMPILING: "true"
-      CCACHE_LOGFILE: "/tmp/kernel_ccache.log"
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-model.outputs.matrix) }}
@@ -314,40 +297,45 @@ jobs:
           vendor_branch_or_commit: ${{ inputs.vendor_branch_or_commit }}
           optimize_level: ${{ inputs.optimize_level }}
 
-      - name: Build Kernel
-        id: build_kernel
+      - name: Kernel modifications
+        id: _kernel
         uses: ./.github/kernel
-        env:
-          CCACHE_DIR: ${{ github.workspace }}/.kernel_ccache
-          LDCACHE_DIR: ${{ github.workspace }}/.kernel_lto_cache
         with:
-          ksun_branch_or_hash: ${{ inputs.ksun_branch }}
-          evict_unused_ccache: ${{ inputs.evict_unused_ccache }}
           use_opt_patches: ${{ inputs.use_opt_patches }}
+          ksun_branch_or_hash: ${{ inputs.ksun_branch }}
           use_susfs: ${{ inputs.use_susfs }}
           susfs_commit_hash_or_branch: ${{ inputs.susfs_branch_or_commit }}
+
+      - name: Kernel Modules modifications
+        id: _modules
+        uses: ./.github/kernel_modules
+
+      - name: Start build
+        id: build
+        uses: ./.github/build
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CCACHE_COMPILERCHECK: "content"
+          CCACHE_NOHASHDIR: "true"
+          CCACHE_DEPEND: "true"
+          CCACHE_IGNOREOPTIONS: "--sysroot*"
+          CCACHE_DIRECT: "true"
+          CCACHE_FILECLONE: "true"
+          CCACHE_INODE_CACHE: "true"
+          CCACHE_UMASK: "002"
+          CCACHE_SLOPPINESS: "file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,system_headers,locale,modules"
+          CCACHE_IS_KERNEL_COMPILING: "true"
+        with:
+          use_susfs: ${{ inputs.use_susfs }}
           optimize_level: ${{ inputs.optimize_level }}
           lto: ${{ inputs.lto }}
           kernel_uname: ${{ inputs.kernel_uname }}
           compile_dlkm: ${{ inputs.compile_dlkm }}
-          tg_enabled: ${{ steps.tg_check.outputs.enabled }}
-          tg_bot_token: ${{ secrets.TG_BOT_TOKEN }}
-          tg_chat_id: ${{ vars.TG_CHAT_ID }}
-          tg_thread_id: ${{ steps.tg_thread.outputs.thread_id }}
-          tg_api_base: ${{ steps.tg_server.outputs.api_base }}
-          tg_send_debug: ${{ inputs.release_type == 'none' }}
 
-      - name: Build Kernel Modules
-        id: build_modules
-        uses: ./.github/kernel_modules
-        env:
-          CCACHE_DIR: ${{ github.workspace }}/.modules_ccache
-          LDCACHE_DIR: ${{ github.workspace }}/.modules_lto_cache
+      - name: Distribution
+        id: distribution
+        uses: ./.github/distribution
         with:
-          optimize_level: ${{ inputs.optimize_level }}
-          lto: ${{ inputs.lto }}
-          evict_unused_ccache: ${{ inputs.evict_unused_ccache }}
-          compile_dlkm: ${{ inputs.compile_dlkm }}
           tg_enabled: ${{ steps.tg_check.outputs.enabled }}
           tg_bot_token: ${{ secrets.TG_BOT_TOKEN }}
           tg_chat_id: ${{ vars.TG_CHAT_ID }}
@@ -590,8 +578,8 @@ jobs:
       - name: Upload Release Assets Dynamically
         run: |
           for file in ./downloaded-artifacts/*/*.{zip,img}; do
-            if [ -f "$file" ]; then
-              echo "Uploading $file..."
-              gh release upload "${{ env.NEW_TAG }}" "$file" --clobber
+            if [ -f "${file}" ]; then
+              echo "Uploading ${file}..."
+              gh release upload "${{ env.NEW_TAG }}" "${file}" --clobber
             fi
           done
