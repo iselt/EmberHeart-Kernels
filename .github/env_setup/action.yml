@@ -468,3 +468,12 @@ runs:
             echo "::error:: couldn't find prebuilt bin path in aosp prebuilts"
           fi
         fi
+
+    - name: Prioritize system coreutils over AOSP prebuilt toybox
+      shell: bash
+      run: |
+        # This should fix the following error when setting up Ksun :
+        # realpath: Unknown option 'relative-to=/home/runner/work/EmberHeart-Kernels/EmberHeart-Kernels/salami-oos16/kernel_platform/common/drivers' (see "realpath --help")
+        # ln: cannot create symbolic link from '' to 'kernelsu': No such file or directory
+        #
+        echo "/usr/bin" >> "${GITHUB_PATH}"
