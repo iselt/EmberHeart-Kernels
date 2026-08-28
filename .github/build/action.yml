@@ -249,19 +249,23 @@ runs:
           else
             local -a CONFIGS
 
-            CONFIGS=("gki_defconfig")
+            if [[ -z "${BASE_DEFCONFIG:-}" ]]; then
+              CONFIGS=("gki_defconfig")
+            else
+              CONFIGS=("${BASE_DEFCONFIG}")
+            fi
 
-            if [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]]; then
+            if [[ -f "${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/vendor/${CODENAME}_GKI.config" ]]; then
               CONFIGS+=("vendor/${CODENAME}_GKI.config")
-            elif [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/${SOC}_GKI.config" ]]; then
+            elif [[ -f "${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/vendor/${SOC}_GKI.config" ]]; then
               CONFIGS+=("vendor/${SOC}_GKI.config")
             fi
 
-            if [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]]; then
+            if [[ -f "${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/vendor/oplus/${SOC}_GKI.config" ]]; then
               CONFIGS+=("vendor/oplus/${SOC}_GKI.config")
             fi
 
-            if [[ -f "${KERNEL_DIR}/arch/arm64/configs/vendor/debugfs.config" ]]; then
+            if [[ -f "${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/vendor/debugfs.config" ]]; then
               CONFIGS+=("vendor/debugfs.config")
             fi
 
