@@ -225,6 +225,18 @@ jobs:
           vendor_branch_or_commit: ${{ inputs.vendor_branch_or_commit }}
           optimize_level: ${{ inputs.optimize_level }}
 
+      - name: Apply local driver patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          WLAN_DIR="$CONFIG/vendor/qcom/opensource/wlan/qcacld-3.0"
+          for p in "$GITHUB_WORKSPACE"/patches/*.patch; do
+            echo "Applying $(basename "$p")"
+            git -C "$WLAN_DIR" apply --check "$p"
+            git -C "$WLAN_DIR" apply "$p"
+          done
+          git -C "$WLAN_DIR" diff --stat || true
+
       - name: Build Kernel
         id: build_kernel
         if: contains(fromJSON('["Kernel Only", "Mixed Build", "Monolithic Build"]'), inputs.build_target)

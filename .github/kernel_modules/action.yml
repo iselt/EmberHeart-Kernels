@@ -391,7 +391,9 @@ runs:
 
         if [ -f "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus" ]; then
           # OPLUS ext modules list
-          EXT_OPLUS=($(cat "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus"))
+          # Trimmed to none for this fork (wlan-only build): oplus modules are
+          # unrelated to the qca_cld3_kiwi_v2.ko artifact and add build time.
+          EXT_OPLUS=()
 
           OPLUS_FLAGS+=(
               CHIPSET_COMPANY=QCOM
@@ -414,33 +416,11 @@ runs:
         fi
 
         # QCOM ext modules
+        # Trimmed to wlan-only for this fork: the goal artifact is
+        # qca_cld3_kiwi_v2.ko; camera/audio/mmrm/etc are unrelated and
+        # upstream HEAD currently fails modpost in some of them.
         EXT_QCOM+=(
-            ../vendor/qcom/opensource/mmrm-driver
-            ../vendor/qcom/opensource/mm-drivers/hw_fence
-            ../vendor/qcom/opensource/mm-drivers/sync_fence
-            ../vendor/qcom/opensource/mm-drivers/msm_ext_display
-            ../vendor/qcom/opensource/securemsm-kernel
-            ../vendor/qcom/opensource/display-drivers/msm
-            ../vendor/qcom/opensource/audio-kernel
-            ../vendor/qcom/opensource/camera-kernel
-            ../vendor/oplus/kernel/explorer
-            ../vendor/qcom/opensource/video-driver
-            ../vendor/qcom/opensource/graphics-kernel
-            ../vendor/qcom/opensource/dataipa/drivers/platform/msm
-            ../vendor/qcom/opensource/datarmnet/core
-            ../vendor/qcom/opensource/datarmnet-ext/aps
-            ../vendor/qcom/opensource/datarmnet-ext/offload
-            ../vendor/qcom/opensource/datarmnet-ext/shs
-            ../vendor/qcom/opensource/datarmnet-ext/sch
-            ../vendor/qcom/opensource/datarmnet-ext/perf
-            ../vendor/qcom/opensource/datarmnet-ext/perf_tether
-            ../vendor/qcom/opensource/datarmnet-ext/wlan
-            ../vendor/qcom/opensource/eva-kernel
             ../vendor/qcom/opensource/wlan/platform
-            ../vendor/qcom/opensource/bt-kernel
-            ../vendor/nxp/opensource/driver
-            ../vendor/st/opensource/driver
-            ../vendor/st/opensource/eSE-driver
             ../vendor/qcom/opensource/wlan/qcacld-3.0/.${QCACLD_DEV_NAME}
         )
 

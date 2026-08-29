@@ -1,0 +1,32 @@
+diff --git a/vendor/qcom/opensource/wlan/qcacld-3.0/core/wma/src/wma_frame_inject.c b/vendor/qcom/opensource/wlan/qcacld-3.0/core/wma/src/wma_frame_inject.c
+--- a/vendor/qcom/opensource/wlan/qcacld-3.0/core/wma/src/wma_frame_inject.c	2026-08-30 00:12:19.264183701 +0800
++++ b/vendor/qcom/opensource/wlan/qcacld-3.0/core/wma/src/wma_frame_inject.c	2026-08-30 00:12:19.266914161 +0800
+@@ -280,6 +280,20 @@
+ 		if (g_inj_tx_vdev.chanfreq == chanfreq)
+ 			return QDF_STATUS_SUCCESS;
+ 
++		/*
++		 * Cross-band moves MUST tear down and recreate the helper
++		 * vdev.  An in-place VDEV_START restart across bands leaves
++		 * the firmware channel scheduler desynced (the host drops
++		 * the hidden vdev's WMI responses) and starves monitor RX
++		 * on the new band until the driver is reloaded.  Same-band
++		 * restarts are safe and keep the cheap re-tune path.
++		 */
++		if ((g_inj_tx_vdev.chanfreq < 4000) != (chanfreq < 4000)) {
++			wma_info("Injection helper cross-band move %u -> %u MHz: destroy+recreate",
++				 g_inj_tx_vdev.chanfreq, chanfreq);
++			wma_injection_destroy_tx_vdev(wma);
++		} else {
++
+ 	/* Prepare and send VDEV_START command to switch frequency
+ 	 * and lock the synthesizer on the target channel.
+ 	 */
+@@ -321,6 +335,7 @@
+ 
+ 		/* Channel changed – tear down and recreate */
+ 		wma_injection_destroy_tx_vdev(wma);
++		}
+ 	}
+ 
+ 	/*
