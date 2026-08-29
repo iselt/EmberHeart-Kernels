@@ -250,9 +250,6 @@ runs:
         echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
         echo "BUILD_CONFIG=${KERNEL_PATCHES}/device/${CODENAME}-${OS_SHORT}/build_config/build.config.${CODENAME}.${OS_SHORT}" >> "$GITHUB_ENV"
 
-        # For debugging purposes
-        echo 'PS4=::debug::' >> $GITHUB_ENV
-
         # Install repo tool if missing
         REPO="/usr/local/bin/repo"
         if [ ! -x "$REPO" ]; then
