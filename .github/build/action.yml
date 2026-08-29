@@ -344,7 +344,7 @@ runs:
         # end of utility functions
 
         cd "${ROOT_DIR}"
-        KERNEL_DIR="common"
+        export KERNEL_DIR="common"
 
         # Allow build.config to override MAKE_FLAGS
         if [[ ! -v MAKE_FLAGS ]]; then
@@ -367,7 +367,7 @@ runs:
         # Force /__symbols__ generation for all DTB[O]s
         export DTC_FLAGS="-@"
         export MSM_ARCH="${SOC}"
-        DTB_TYPES="${MSM_ARCH}-overlays-"
+        export DTB_TYPES="${MSM_ARCH}-overlays-"
         OUT="${OUT_DIR}/gki-kernel"
 
         _line
@@ -447,7 +447,7 @@ runs:
           set +X
           _line
         else
-          KERNEL_DIR="msm-kernel"
+          export KERNEL_DIR="msm-kernel"
           OUT="${OUT_DIR}/msm-kernel"
           MAKE_GOALS="modules dtbs"
           MAKE_FLAGS+=( KBUILD_MIXED_TREE="${DIST_DIR}" )
