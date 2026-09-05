@@ -1,0 +1,87 @@
+diff --git a/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_api.c b/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_api.c
+index 011dc26..96f27fc 100644
+--- a/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_api.c
++++ b/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_api.c
+@@ -3378,11 +3378,36 @@ void lim_mon_deinit_session(struct mac_context *mac_ptr,
+ 			    struct sir_delete_session *msg)
+ {
+ 	struct pe_session *session;
++	uint8_t i;
+ 
+ 	session = pe_find_session_by_vdev_id(mac_ptr, msg->vdev_id);
+ 
+-	if (session && session->bssType == eSIR_MONITOR_MODE)
++	if (session && session->bssType == eSIR_MONITOR_MODE) {
+ 		pe_delete_session(mac_ptr, session);
++		return;
++	}
++
++	/*
++	 * MONDBG: vdev_id lookup failed or type mismatch. Historically this
++	 * branch returned silently; a monitor PE session left behind here is
++	 * never freed (pe_create_session eventually fails with "Reached max
++	 * sessions" after repeated monitor add/del cycles). Monitor mode has
++	 * at most one session at a time, so fall back to a type scan and
++	 * reclaim any leaked eSIR_MONITOR_MODE slot.
++	 */
++	pe_err("MONDBG mon deinit: vdev_id=%u lookup failed (found=%d), falling back to type scan",
++	       msg->vdev_id, !!session);
++	for (i = 0; i < mac_ptr->lim.maxBssId; i++) {
++		if (mac_ptr->lim.gpSession[i].valid &&
++		    mac_ptr->lim.gpSession[i].bssType == eSIR_MONITOR_MODE) {
++			pe_err("MONDBG mon deinit: reclaiming leaked monitor slot[%d] vdev_id=%d",
++			       i, mac_ptr->lim.gpSession[i].vdev_id);
++			pe_delete_session(mac_ptr,
++					  &mac_ptr->lim.gpSession[i]);
++			return;
++		}
++	}
++	pe_err("MONDBG mon deinit: no monitor session present (nothing to reclaim)");
+ }
+ 
+ /**
+diff --git a/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_session.c b/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_session.c
+index d77dd91..4b85c08 100644
+--- a/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_session.c
++++ b/vendor/qcom/opensource/wlan/qcacld-3.0/core/mac/src/pe/lim/lim_session.c
+@@ -550,7 +550,18 @@ struct pe_session *pe_create_session(struct mac_context *mac,
+ 	}
+ 
+ 	if (i == mac->lim.maxBssId) {
++		uint8_t d;
++
+ 		pe_err("Session can't be created. Reached max sessions");
++		/* MONDBG: dump occupied slots to identify session leakers */
++		for (d = 0; d < mac->lim.maxBssId; d++) {
++			if (mac->lim.gpSession[d].valid)
++				pe_err("MONDBG slot[%d] bssType=%d vdev_id=%d opmode=%d smeState=0x%x",
++				       d, mac->lim.gpSession[d].bssType,
++				       mac->lim.gpSession[d].vdev_id,
++				       mac->lim.gpSession[d].opmode,
++				       mac->lim.gpSession[d].limSmeState);
++		}
+ 		return NULL;
+ 	}
+ 
+@@ -632,8 +643,8 @@ struct pe_session *pe_create_session(struct mac_context *mac,
+ 	session_ptr->opmode = wlan_vdev_mlme_get_opmode(vdev);
+ 	mlme_set_tdls_chan_switch_prohibited(vdev, false);
+ 	mlme_set_tdls_prohibited(vdev, false);
+-	pe_debug("Create PE session: %d opmode %d vdev_id %d  BSSID: "QDF_MAC_ADDR_FMT" Max No of STA: %d",
+-		 *sessionId, session_ptr->opmode, vdev_id,
++	pe_err("MONDBG create session[%d] bssType=%d opmode=%d vdev_id=%d BSSID: "QDF_MAC_ADDR_FMT" Max No of STA: %d",
++		 *sessionId, bssType, session_ptr->opmode, vdev_id,
+ 		 QDF_MAC_ADDR_REF(bssid), numSta);
+ 
+ 	if (!lim_create_peer_idxpool(
+@@ -859,8 +870,8 @@ void pe_delete_session(struct mac_context *mac_ctx, struct pe_session *session)
+ 		return;
+ 	}
+ 
+-	pe_debug("Delete PE session: %d opmode: %d vdev_id: %d BSSID: "QDF_MAC_ADDR_FMT,
+-		 session->peSessionId, session->opmode, session->vdev_id,
++	pe_err("MONDBG delete session[%d] bssType=%d opmode: %d vdev_id: %d BSSID: "QDF_MAC_ADDR_FMT,
++		 session->peSessionId, session->bssType, session->opmode, session->vdev_id,
+ 		 QDF_MAC_ADDR_REF(session->bssId));
+ 
+ 	lim_reset_bcn_probe_filter(mac_ctx, session);
